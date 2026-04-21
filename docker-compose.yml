@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ./backend
+    container_name: studymatch_backend
+    environment:
+      # host.docker.internal points to your Windows machine from inside the container
+      - DATABASE_URL=postgresql://postgres:Fasmina1209@host.docker.internal:5000/study_platform;
+      - SECRET_KEY=secure-super-secret-production-key
+    ports:
+      - "8000:8000"
+    # Wait for the host's networking to be ready
+    restart: on-failure
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  web:
+    build:
+      context: ./frontend
+    container_name: studymatch_frontend
+    ports:
+      - "5173:80" # Maps local port 5173 to Nginx internal port 80
+    depends_on:
+      - api
