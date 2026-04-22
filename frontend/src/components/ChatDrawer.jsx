@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useContext } from 'react';
-import { X, Send, User } from 'lucide-react';
+import { X, Send, User, Plus, FileText, Download, Loader2 } from 'lucide-react';
 import api from '../api';
 import { AuthContext } from '../context/AuthContext';
 
@@ -8,7 +8,9 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Poll for messages while drawer is open
   useEffect(() => {
@@ -48,6 +50,32 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
     } catch (err) {
       console.error("Failed to send message", err);
       setNewMessage(content); // restore on error
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !group) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // Use standard axios to send multipart data
+      const res = await api.post(`/groups/${group.id}/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setMessages([...messages, res.data]);
+    } catch (err) {
+      console.error("File upload failed", err);
+      alert("System Error: Failed to upload file. Please ensure it is not too large.");
+    } finally {
+      setUploading(false);
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -95,11 +123,12 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
                   <div className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100">
                     <Send className="h-10 w-10 text-indigo-400 -rotate-12" />
                   </div>
-                  <p className="text-sm font-bold tracking-tight">Send the first message to the group!</p>
+                  <p className="text-sm font-bold tracking-tight">Send a message or share a PDF!</p>
                 </div>
               ) : (
                 messages.map((m, idx) => {
                    const isMe = m.sender_id === user?.id;
+                   const isFile = m.is_file;
                    return (
                     <div key={m.id || idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? 'flex-row-reverse' : ''}`}>
@@ -108,13 +137,40 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
                           {new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </span>
                       </div>
-                      <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm leading-relaxed transition-all hover:shadow-md ${
-                        isMe 
-                          ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100 border border-indigo-500' 
-                          : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'
-                      }`}>
-                        {m.content}
-                      </div>
+                      
+                      {isFile ? (
+                        <div className={`max-w-[85%] p-1 rounded-2xl shadow-sm transition-all hover:shadow-md ${
+                          isMe ? 'bg-indigo-600' : 'bg-white border border-slate-200'
+                        }`}>
+                           <div className={`flex items-center gap-3 p-3 rounded-xl ${isMe ? 'bg-white/10' : 'bg-slate-50'}`}>
+                              <div className={`p-2 rounded-lg ${isMe ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
+                                <FileText className="h-6 w-6" />
+                              </div>
+                              <div className="min-w-0 pr-2">
+                                <p className={`text-xs font-bold truncate mb-1 ${isMe ? 'text-white' : 'text-slate-800'}`}>
+                                  {m.file_name || 'Shared Document'}
+                                </p>
+                                <a 
+                                  href={`http://localhost:8000${m.file_url}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:underline ${isMe ? 'text-indigo-200' : 'text-indigo-600'}`}
+                                >
+                                  <Download className="h-3 w-3" />
+                                  View / Download
+                                </a>
+                              </div>
+                           </div>
+                        </div>
+                      ) : (
+                        <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm leading-relaxed transition-all hover:shadow-md ${
+                          isMe 
+                            ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100 border border-indigo-500' 
+                            : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'
+                        }`}>
+                          {m.content}
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -123,7 +179,29 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
 
             {/* Input Bar */}
             <div className="p-6 bg-white border-t border-slate-100">
-              <form onSubmit={handleSend} className="flex items-end gap-3 bg-slate-50 p-2 rounded-3xl border border-slate-200 shadow-inner group focus-within:bg-white focus-within:border-indigo-300 transition-all">
+              <form onSubmit={handleSend} className="flex items-end gap-2 bg-slate-50 p-2 rounded-3xl border border-slate-200 shadow-inner group focus-within:bg-white focus-within:border-indigo-300 transition-all">
+                {/* File Upload Input & Trigger */}
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                />
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 text-slate-400 hover:text-indigo-600 transition-colors active:scale-90"
+                  title="Share File"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Plus className="h-6 w-6" />
+                  )}
+                </button>
+
                 <textarea
                   rows="1"
                   value={newMessage}
@@ -134,18 +212,20 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
                       handleSend();
                     }
                   }}
-                  placeholder="Share a thought..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 placeholder-slate-400 resize-none py-3 px-3 max-h-32"
+                  placeholder={uploading ? "Uploading..." : "Share a thought..."}
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 placeholder-slate-400 resize-none py-3 px-1 max-h-32"
                 />
                 <button
                   type="submit"
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() || uploading}
                   className="p-3.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-30 disabled:bg-slate-400 transition-all shadow-xl shadow-indigo-200 active:scale-95"
                 >
                   <Send className="h-5 w-5" />
                 </button>
               </form>
-              <p className="mt-3 text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest leading-none">Shift + Enter for new line</p>
+              <p className="mt-3 text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest leading-none">
+                {uploading ? 'Processing your file...' : 'Shift + Enter for new line'}
+              </p>
             </div>
           </div>
         </div>

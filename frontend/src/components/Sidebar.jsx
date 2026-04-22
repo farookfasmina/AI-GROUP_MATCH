@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useContext } from 'react';
-import { LayoutDashboard, Users, UserPlus, Bell, Settings, User, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Bell, Settings, User, ShieldCheck, Calendar } from 'lucide-react';
 import { NotificationContext } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,6 +11,7 @@ export default function Sidebar() {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'My Matches', path: '/matches', icon: UserPlus },
     { name: 'Study Groups', path: '/groups', icon: Users },
+    { name: 'Upcoming Meetings', path: '/sessions', icon: Calendar },
     { name: 'Notifications', path: '/notifications', icon: Bell },
     { name: 'Preferences', path: '/preferences', icon: Settings },
     { name: 'Profile', path: '/profile', icon: User },
