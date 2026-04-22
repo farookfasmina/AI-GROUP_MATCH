@@ -37,7 +37,31 @@ def seed_database():
     try:
         print("Creating 50 Users with Preferences and Availabilities...")
         users = []
-        for _ in range(50):
+        
+        # --- ENSURE STABLE TEST USER FOR VIVA ---
+        test_user_email = "james80@example.net"
+        existing_test_user = db.query(User).filter(User.email == test_user_email).first()
+        if not existing_test_user:
+            viva_user = User(
+                email=test_user_email,
+                hashed_password=get_password_hash("password123"),
+                full_name="James Viva admin",
+                university="Main Campus University",
+                department="Computer Science",
+                academic_year="Senior",
+                is_platform_admin=True
+            )
+            db.add(viva_user)
+            db.commit()
+            db.refresh(viva_user)
+            users.append(viva_user)
+            print(f"Created Viva Admin: {test_user_email}")
+        else:
+            users.append(existing_test_user)
+            print(f"Viva Admin already exists: {test_user_email}")
+        
+        # Create remaining users (50 total)
+        for _ in range(50 - len(users)):
             # 1. User Account
             user = User(
                 email=fake.unique.email(),

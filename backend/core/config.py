@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     
     # Database
     # Switched back to PostgreSQL for Viva Demo stability
-    DATABASE_URL: str = "postgresql://postgres:Fasmina1209@localhost:5000/study_platform;"
+    DATABASE_URL: str = "postgresql://postgres:Fasmina1209@localhost:5000/study_platform"
     
     # JWT Auth Setup
     SECRET_KEY: str = "secure-super-secret-production-key"

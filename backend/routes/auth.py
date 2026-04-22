@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from core.database import get_db
 from core.security import verify_password, create_access_token, get_password_hash, create_reset_token, verify_reset_token
@@ -43,9 +44,14 @@ def login_access_token(
     OAuth2 compatible token login with live diagnostic logging.
     """
     try:
-        user = db.query(User).filter(User.email == form_data.username).first()
+        # Normalize incoming username (email) to lower case
+        email_lowercase = form_data.username.lower()
+        
+        # Use func.lower() for case-insensitive matching in the database
+        user = db.query(User).filter(func.lower(User.email) == email_lowercase).first()
+        
         if not user:
-            print(f"LOGIN FAILURE: User {form_data.username} not found in DB.")
+            print(f"AUTH DIAGNOSTIC: User NOT FOUND -> '{form_data.username}'")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -53,13 +59,14 @@ def login_access_token(
             )
             
         if not verify_password(form_data.password, user.hashed_password):
-            print(f"LOGIN FAILURE: Password verification failed for {form_data.username}.")
+            print(f"AUTH DIAGNOSTIC: Password MISMATCH for -> '{form_data.username}'")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
+        print(f"AUTH SUCCESS: User logged in -> '{user.email}'")
         access_token = create_access_token(data={"sub": str(user.id)})
         return {"access_token": access_token, "token_type": "bearer"}
     except Exception as e:
