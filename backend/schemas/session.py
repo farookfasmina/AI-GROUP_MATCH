@@ -11,6 +11,7 @@ class StudySessionCreate(BaseModel):
 class StudySessionResponse(StudySessionCreate):
     id: int
     group_id: int
+    group_name: Optional[str] = None
 
     class Config:
         from_attributes = True

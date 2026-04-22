@@ -131,7 +131,10 @@ class GroupMessage(Base):
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(Integer, ForeignKey("study_groups.id"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    content = Column(Text, nullable=False)
+    content = Column(Text, nullable=True) # Content can be null if it is a file-only message
+    is_file = Column(Boolean, default=False)
+    file_url = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

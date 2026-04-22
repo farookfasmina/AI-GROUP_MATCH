@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import sys
 import os
 
@@ -21,6 +22,9 @@ app = FastAPI(
     version=settings.PROJECT_VERSION,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+# Mount the static files directory to serve shared chat files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Enable CORS for all local development variants
 origins = [

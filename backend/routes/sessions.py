@@ -30,3 +30,30 @@ def get_my_upcoming_sessions(
     ).order_by(StudySession.start_time.asc()).all()
     
     return sessions
+
+@router.get("", response_model=List[StudySessionResponse])
+def get_all_upcoming_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Fetch all upcoming sessions across the entire platform."""
+    now = datetime.utcnow()
+    # Get all upcoming sessions (start_time >= now)
+    sessions = db.query(StudySession).filter(
+        StudySession.start_time >= now
+    ).order_by(StudySession.start_time.asc()).all()
+    
+    result = []
+    for s in sessions:
+        # Transform SQLAlchemy model to dict and include group_name
+        result.append({
+            "id": s.id,
+            "group_id": s.group_id,
+            "group_name": s.group.name,
+            "title": s.title,
+            "start_time": s.start_time,
+            "duration_minutes": s.duration_minutes,
+            "location": s.location
+        })
+        
+    return result

@@ -3,7 +3,10 @@ from datetime import datetime
 from typing import Optional
 
 class GroupMessageBase(BaseModel):
-    content: str
+    content: Optional[str] = None
+    is_file: Optional[bool] = False
+    file_url: Optional[str] = None
+    file_name: Optional[str] = None
 
 class GroupMessageCreate(GroupMessageBase):
     pass
