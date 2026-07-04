@@ -1,0 +1,9 @@
+{
+  "subject_overlap": 0.3198,
+  "availability_overlap": 0.2056,
+  "study_type_match": 0.1871,
+  "collab_tendency_match": 0.1096,
+  "learning_style_match": 0.032,
+  "comm_pref_match": 0.0648,
+  "competency_match": 0.0812
+}
