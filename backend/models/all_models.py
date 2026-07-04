@@ -157,3 +157,22 @@ class StudyInsight(Base):
     # Relationships
     user = relationship("User")
     group = relationship("StudyGroup")
+
+
+class MatchFeedback(Base):
+    __tablename__ = "match_feedbacks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    matched_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    compatibility_rating = Column(Integer, nullable=False)
+    collaboration_quality = Column(Integer, nullable=False)
+    scheduling_ease = Column(Integer, nullable=False)
+    feedback_text = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships (explicit foreign_keys specified to resolve multiple paths to User table)
+    user = relationship("User", foreign_keys=[user_id])
+    matched_user = relationship("User", foreign_keys=[matched_user_id])
+

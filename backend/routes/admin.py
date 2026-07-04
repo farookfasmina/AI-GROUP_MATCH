@@ -4,6 +4,8 @@ from typing import List, Dict, Any
 from core.database import get_db
 from core.deps import get_current_user
 from models.all_models import User, StudyGroup, StudySession
+from services.matching_service import load_weights, optimize_matching_weights
+
 
 router = APIRouter()
 
@@ -86,3 +88,22 @@ def delete_user(
     db.delete(user)
     db.commit()
     return {"message": "User deleted successfully"}
+
+
+@router.get("/weights", response_model=Dict[str, float])
+def get_matching_weights(
+    admin: User = Depends(get_platform_admin)
+):
+    """Retrieve the current matching algorithm weights."""
+    return load_weights()
+
+
+@router.post("/optimize-weights", response_model=Dict[str, float])
+def run_weight_optimization(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_platform_admin)
+):
+    """Trigger the dynamic weight learning loop algorithm."""
+    new_weights = optimize_matching_weights(db)
+    return new_weights
+

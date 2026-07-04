@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.deps import get_current_user
-from models.all_models import User, Notification, StudyGroup, Membership
+from models.all_models import User, Notification, StudyGroup, Membership, MatchFeedback
 from services.matching_service import get_top_user_matches
+from schemas.feedback import FeedbackCreate, FeedbackResponse
 
 router = APIRouter()
 
@@ -89,3 +90,46 @@ def init_private_group(
     
     db.commit()
     return {"group_id": new_group.id, "name": new_group.name}
+
+
+@router.post("/{target_user_id}/feedback", response_model=FeedbackResponse)
+def submit_match_feedback(
+    target_user_id: int,
+    feedback: FeedbackCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Submits feedback rating and optional review comments for a matched partner.
+    """
+    target_user = db.query(User).filter(User.id == target_user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+        
+    existing_feedback = db.query(MatchFeedback).filter(
+        MatchFeedback.user_id == current_user.id,
+        MatchFeedback.matched_user_id == target_user_id
+    ).first()
+    
+    if existing_feedback:
+        existing_feedback.compatibility_rating = feedback.compatibility_rating
+        existing_feedback.collaboration_quality = feedback.collaboration_quality
+        existing_feedback.scheduling_ease = feedback.scheduling_ease
+        existing_feedback.feedback_text = feedback.feedback_text
+        db.commit()
+        db.refresh(existing_feedback)
+        return existing_feedback
+        
+    new_feedback = MatchFeedback(
+        user_id=current_user.id,
+        matched_user_id=target_user_id,
+        compatibility_rating=feedback.compatibility_rating,
+        collaboration_quality=feedback.collaboration_quality,
+        scheduling_ease=feedback.scheduling_ease,
+        feedback_text=feedback.feedback_text
+    )
+    db.add(new_feedback)
+    db.commit()
+    db.refresh(new_feedback)
+    return new_feedback
+

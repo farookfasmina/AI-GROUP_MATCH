@@ -7,7 +7,7 @@ services:
     container_name: studymatch_backend
     environment:
       # host.docker.internal points to your Windows machine from inside the container
-      - DATABASE_URL=postgresql://postgres:Fasmina1209@host.docker.internal:5000/study_platform;
+      - DATABASE_URL=postgresql://postgres:Fasmina1209@host.docker.internal:5000/study_platform
       - SECRET_KEY=secure-super-secret-production-key
     ports:
       - "8000:8000"

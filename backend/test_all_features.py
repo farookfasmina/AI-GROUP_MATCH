@@ -111,6 +111,58 @@ def test_platform_features():
     else:
         print(f"AI Insights: Returned {ai_res.status_code}")
 
+    # 10. Feedback: Submit Feedback Check
+    print("\n--- Testing Match Feedback ---")
+    matches_res = client.get("/api/v1/matches/me", headers=headers)
+    if matches_res.status_code == 200 and len(matches_res.json()) > 0:
+        target_user_id = matches_res.json()[0]["target_user_id"]
+        feedback_data = {
+            "compatibility_rating": 5,
+            "collaboration_quality": 4,
+            "scheduling_ease": 4,
+            "feedback_text": "Great collaboration during our test study session!"
+        }
+        feedback_res = client.post(f"/api/v1/matches/{target_user_id}/feedback", json=feedback_data, headers=headers)
+        if feedback_res.status_code == 200:
+            print("Submit Match Feedback: SUCCESS")
+        else:
+            print(f"Submit Match Feedback: FAILED ({feedback_res.status_code})")
+            print(feedback_res.json())
+    else:
+        print("Submit Match Feedback: SKIPPED (No matches found)")
+
+    # 11. Admin Weights & Optimization Test
+    print("\n--- Testing Admin AI Weight Tuning ---")
+    db = SessionLocal()
+    admin_user = db.query(User).filter(User.is_platform_admin == True).first()
+    db.close()
+    
+    if admin_user:
+        admin_login = client.post("/api/v1/auth/login", data={"username": admin_user.email, "password": "password123"})
+        if admin_login.status_code == 200:
+            admin_token = admin_login.json()["access_token"]
+            admin_headers = {"Authorization": f"Bearer {admin_token}"}
+            
+            # Fetch Weights
+            w_res = client.get("/api/v1/admin/weights", headers=admin_headers)
+            if w_res.status_code == 200:
+                print(f"GET Admin Weights: SUCCESS")
+            else:
+                print(f"GET Admin Weights: FAILED ({w_res.status_code})")
+                
+            # Run Optimization
+            opt_res = client.post("/api/v1/admin/optimize-weights", headers=admin_headers)
+            if opt_res.status_code == 200:
+                print(f"POST Optimize Weights: SUCCESS")
+            else:
+                print(f"POST Optimize Weights: FAILED ({opt_res.status_code})")
+        else:
+            print("Admin Login: FAILED")
+    else:
+        print("Admin AI Tuning Check: SKIPPED (No admin found in DB)")
+
+
+
     print("\n========================================")
     print("      INTEGRATION TEST COMPLETED        ")
     print("========================================")
