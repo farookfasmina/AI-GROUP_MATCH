@@ -39,7 +39,7 @@ export default function SessionModal({ isOpen, onClose, groupId, groupName, onSe
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
         <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
           <div>

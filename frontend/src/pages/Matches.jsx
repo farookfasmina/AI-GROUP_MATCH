@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import MatchCard from '../components/MatchCard';
 import SessionModal from '../components/SessionModal';
+import FeedbackModal from '../components/FeedbackModal';
 import api from '../api';
 
 export default function Matches() {
@@ -13,6 +14,10 @@ export default function Matches() {
   // Scheduling Modal State
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [schedulingGroup, setSchedulingGroup] = useState(null);
+
+  // Feedback Modal State
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [ratingMatch, setRatingMatch] = useState(null);
 
   useEffect(() => {
     const loadMatches = async () => {
@@ -52,13 +57,18 @@ export default function Matches() {
     }
   };
 
+  const handleRateRequest = (match) => {
+    setRatingMatch(match);
+    setFeedbackModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-8 pt-24 md:pl-64">
-          <div className="max-w-5xl mx-auto pb-12">
+        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
+          <div className="max-w-5xl mx-auto px-4 sm:px-8 pb-12">
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">My Top Matches</h1>
             <p className="text-slate-600 font-medium mb-8">Calculated by our AI engine based on subjects, availability, and learning style.</p>
             
@@ -81,6 +91,7 @@ export default function Matches() {
                     match={m} 
                     onConnect={handleConnect}
                     onSchedule={handleScheduleRequest}
+                    onRate={handleRateRequest}
                   />
                 ))}
               </div>
@@ -101,6 +112,16 @@ export default function Matches() {
           groupId={schedulingGroup?.id}
           groupName={schedulingGroup?.name}
           onSessionCreated={() => alert(`Session scheduled with ${schedulingGroup.name}!`)}
+        />
+      )}
+
+      {feedbackModalOpen && (
+        <FeedbackModal 
+          isOpen={feedbackModalOpen}
+          onClose={() => setFeedbackModalOpen(false)}
+          targetUserId={ratingMatch?.target_user_id}
+          targetUserName={ratingMatch?.full_name}
+          onFeedbackSubmitted={() => alert(`Feedback submitted for ${ratingMatch.full_name}!`)}
         />
       )}
     </div>

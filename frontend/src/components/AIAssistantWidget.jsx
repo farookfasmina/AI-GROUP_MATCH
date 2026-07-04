@@ -5,20 +5,32 @@ import api from '../api';
 export default function AIAssistantWidget() {
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchInsights = async (showPulse = true) => {
+    if (showPulse) setLoading(true);
+    try {
+      const res = await api.get('/ai/insights');
+      setInsights(res.data);
+    } catch (err) {
+      console.error("AI Assistant sync error", err);
+    } finally {
+      if (showPulse) setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchInsights = async () => {
-      try {
-        const res = await api.get('/ai/insights');
-        setInsights(res.data);
-      } catch (err) {
-        console.error("AI Assistant sync error", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInsights();
+    fetchInsights(true);
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchInsights(false);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -47,7 +59,14 @@ export default function AIAssistantWidget() {
              </div>
              <h3 className="text-xl font-black text-white tracking-tight uppercase">AI Study Guru</h3>
           </div>
-          <span className="text-[10px] font-black text-indigo-300 bg-indigo-800/50 px-3 py-1 rounded-full border border-indigo-700/50 uppercase tracking-widest leading-none">Weekly Sync</span>
+          <button 
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 text-[10px] font-black text-indigo-300 hover:text-white bg-indigo-800/50 px-3 py-1.5 rounded-full border border-indigo-700/50 uppercase tracking-widest leading-none transition-all active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? "Syncing..." : "Sync AI"}
+          </button>
         </div>
 
         {/* Challenge Section */}

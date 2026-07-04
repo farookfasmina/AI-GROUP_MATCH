@@ -1,7 +1,7 @@
-import { User, CheckCircle2, UserPlus, Calendar, Sparkles, BookOpen } from 'lucide-react';
+import { User, CheckCircle2, UserPlus, Calendar, Sparkles, BookOpen, Star } from 'lucide-react';
 import { useState } from 'react';
 
-export default function MatchCard({ match, onConnect, onSchedule }) {
+export default function MatchCard({ match, onConnect, onSchedule, onRate }) {
   const [isConnected, setIsConnected] = useState(false);
   
   // Determine gradient map based on score
@@ -27,7 +27,7 @@ export default function MatchCard({ match, onConnect, onSchedule }) {
         <div className="flex items-start justify-between mb-5">
           <div className="flex items-center gap-4">
             <div className={`h-16 w-16 rounded-2xl ${isHighMatch ? 'bg-emerald-50 border-emerald-100' : 'bg-indigo-50 border-indigo-100'} border flex items-center justify-center shrink-0 shadow-inner group-hover:rotate-3 transition-transform duration-300`}>
-              <User className={`h-8 w-8 ${iconColor}`} />
+               <User className={`h-8 w-8 ${iconColor}`} />
             </div>
             <div>
               <div className="flex items-baseline gap-2">
@@ -64,25 +64,35 @@ export default function MatchCard({ match, onConnect, onSchedule }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleConnectClick}
+                disabled={isConnected}
+                className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-sm transition-all duration-300 ${
+                  isConnected 
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default' 
+                  : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 active:scale-95'
+                }`}
+              >
+                {isConnected ? <CheckCircle2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                {isConnected ? 'Connected' : 'Connect'}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onSchedule(match); }}
+                className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all duration-300 active:scale-95"
+              >
+                <Calendar className="h-4 w-4" />
+                Schedule
+              </button>
+            </div>
+            
             <button
-              onClick={handleConnectClick}
-              disabled={isConnected}
-              className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-sm transition-all duration-300 ${
-                isConnected 
-                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default' 
-                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 active:scale-95'
-              }`}
+              onClick={(e) => { e.stopPropagation(); onRate(match); }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs transition-all duration-300 active:scale-95 border border-slate-200"
             >
-              {isConnected ? <CheckCircle2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              {isConnected ? 'Connected' : 'Connect'}
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onSchedule(match); }}
-              className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all duration-300 active:scale-95"
-            >
-              <Calendar className="h-4 w-4" />
-              Schedule
+              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+              Evaluate Match
             </button>
           </div>
         </div>
@@ -90,3 +100,4 @@ export default function MatchCard({ match, onConnect, onSchedule }) {
     </div>
   );
 }
+

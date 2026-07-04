@@ -49,8 +49,8 @@ export default function Profile() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 pt-24 md:pl-64">
-          <div className="max-w-4xl mx-auto pb-12">
+        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
+          <div className="max-w-4xl mx-auto px-4 sm:px-8 pb-12">
             
             <div className="bg-white rounded-[2rem] p-8 md:p-12 shadow-sm border border-slate-200 mb-8 relative overflow-hidden">
                {/* Decorative Background Elements */}

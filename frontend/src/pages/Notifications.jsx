@@ -30,8 +30,8 @@ export default function Notifications() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 pt-24 md:pl-64">
-          <div className="max-w-4xl mx-auto pb-12">
+        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
+          <div className="max-w-4xl mx-auto px-4 sm:px-8 pb-12">
             
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b border-slate-200 pb-6">
               <div>

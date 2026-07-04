@@ -140,8 +140,8 @@ export default function Groups() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 relative pt-24 md:pl-64">
-          <div className="max-w-6xl mx-auto pb-12 relative z-10">
+        <main className="flex-1 overflow-y-auto pt-24 md:pl-64 relative">
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-12 relative z-10">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 gap-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Study Groups</h1>

@@ -82,7 +82,7 @@ export default function ChatDrawer({ group, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden pointer-events-none">
+    <div className="fixed inset-0 z-[150] overflow-hidden pointer-events-none">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-opacity duration-500"

@@ -3,13 +3,15 @@ import { Navigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
-import { Users, BookOpen, Clock, ShieldAlert, ShieldPlus, UserMinus, Trash2, ShieldX } from 'lucide-react';
+import { Users, BookOpen, Clock, ShieldAlert, ShieldPlus, UserMinus, Trash2, ShieldX, Sliders, Sparkles } from 'lucide-react';
 import api from '../api';
 
 export default function Admin() {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [usersList, setUsersList] = useState([]);
+  const [weights, setWeights] = useState(null);
+  const [optimizing, setOptimizing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,12 +19,27 @@ export default function Admin() {
     try {
       const statsRes = await api.get('/admin/stats');
       const usersRes = await api.get('/admin/users');
+      const weightsRes = await api.get('/admin/weights');
       setStats(statsRes.data);
       setUsersList(usersRes.data);
+      setWeights(weightsRes.data);
     } catch (err) {
       setError('Failed to load admin data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRunOptimization = async () => {
+    setOptimizing(true);
+    try {
+      const res = await api.post('/admin/optimize-weights');
+      setWeights(res.data);
+      alert("Dynamic weights optimization completed! Algorithmic weights adjusted to success feedback signatures.");
+    } catch (err) {
+      alert("Optimization loop failed: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setOptimizing(false);
     }
   };
 
@@ -89,8 +106,8 @@ export default function Admin() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-8 pt-24 md:pl-64">
-          <div className="max-w-6xl mx-auto pb-12">
+        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-12">
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Platform Command Center</h1>
             <p className="text-slate-600 font-medium mb-8">System health, scale metrics, and user moderation pipeline.</p>
             
@@ -135,6 +152,69 @@ export default function Admin() {
                       <Clock className="h-5 w-5" /> Upcoming Sessions
                     </div>
                     <p className="text-5xl font-black text-slate-900">{stats?.total_sessions || 0}</p>
+                  </div>
+                </div>
+
+                {/* AI Matching Parameter Tuning */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12 animate-fade-in">
+                  <div className="lg:col-span-2 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                        <Sliders className="h-5 w-5 text-indigo-600" />
+                        AI Matching Weight Tuning
+                      </h3>
+                      <button
+                        onClick={handleRunOptimization}
+                        disabled={optimizing}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {optimizing ? "Optimizing..." : "Run AI Learning Loop"}
+                      </button>
+                    </div>
+
+                    {weights ? (
+                      <div className="space-y-4">
+                        {Object.entries(weights).map(([key, val]) => {
+                          const percent = Math.round(val * 100);
+                          const readableName = key.replace(/_/g, ' ').replace('match', 'alignment').toUpperCase();
+                          return (
+                            <div key={key} className="space-y-1.5">
+                              <div className="flex justify-between text-xs font-bold text-slate-500 tracking-wider">
+                                <span>{readableName}</span>
+                                <span>{percent}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                                  style={{ width: `${percent}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">Loading AI weights...</p>
+                    )}
+                  </div>
+
+                  <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-extrabold text-lg mb-2 flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-amber-400" />
+                        Adaptive Learning Loop
+                      </h3>
+                      <p className="text-xs text-indigo-200 leading-relaxed mb-4">
+                        Our dynamic learning algorithm analyzes all matching feedbacks with high collaboration outcomes (ratings &ge; 4.0). 
+                      </p>
+                      <p className="text-xs text-indigo-200 leading-relaxed">
+                        It averages similarities across all success indicators, aligns them dynamically via a moving average ($\alpha = 0.2$), and saves new model tuning parameters to prioritize traits that work best in practice.
+                      </p>
+                    </div>
+                    <div className="border-t border-indigo-800 pt-4 mt-6 text-[10px] text-indigo-300 font-medium">
+                      Objective 2 / Evaluation Telemetry Module
+                    </div>
                   </div>
                 </div>
 

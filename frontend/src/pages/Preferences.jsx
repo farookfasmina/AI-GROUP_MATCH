@@ -70,8 +70,8 @@ export default function Preferences() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto p-8 pt-24 md:pl-64">
-          <div className="max-w-3xl mx-auto pb-12">
+        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
+          <div className="max-w-3xl mx-auto px-4 sm:px-8 pb-12">
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Study Preferences</h1>
             <p className="text-slate-600 font-medium mb-8">Update your profile to get more accurate study group matches.</p>
             

@@ -61,4 +61,4 @@ An intelligent platform designed to connect students based on their learning sty
 This project is for academic/research purposes.
 
 ---
-Created by **Saheela1023** (ITBIN-2211-0274 / ITBIN-2211-0116)
+Created by **farookfasmina** (ITBIN-2211-0274 / ITBIN-2211-0116)
