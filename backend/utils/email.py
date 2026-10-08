@@ -9,7 +9,7 @@ def send_reset_email(email_to: str, token: str):
     Sends a formatted HTML password recovery email via SMTP.
     """
     subject = f"{settings.PROJECT_NAME} - Password Recovery"
-    link = f"http://localhost:5173/reset-password?token={token}"
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
     
     html_content = f"""
     <html>
@@ -39,6 +39,9 @@ def send_reset_email(email_to: str, token: str):
     # DEMO INSURANCE: Always log the link to the terminal console
     print(f"\n[SECURITY HUB] Password recovery link generated for {email_to}:")
     print(f"LINK: {link}\n")
+
+    if not (settings.SMTP_USER and settings.SMTP_PASSWORD):
+        return False  # no mail server configured - the link above is in the server log
 
     try:
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:

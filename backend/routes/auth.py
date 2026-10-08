@@ -1,122 +1,71 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import datetime
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.security import verify_password, create_access_token, get_password_hash, create_reset_token, verify_reset_token
+from core.security import create_access_token, create_reset_token, get_password_hash, verify_password, verify_reset_token
 from models.all_models import User
+from routes.users import user_profile
 from schemas.token import Token
-from schemas.user import UserCreate, UserProfile
+from schemas.user import ForgotPasswordIn, ResetPasswordIn, UserCreate
 from utils.email import send_reset_email
 
 router = APIRouter()
 
-@router.post("/register", response_model=UserProfile)
+
+@router.post("/register")
 def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
-    """
-    Register a new user in the platform.
-    """
-    user = db.query(User).filter(User.email == user_in.email).first()
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system",
-        )
+    """Register a new student account."""
+    email = user_in.email.lower()
+    if db.query(User).filter(func.lower(User.email) == email).first():
+        raise HTTPException(status_code=400, detail="An account with this email already exists - sign in instead.")
     user = User(
-        email=user_in.email,
+        email=email,
         hashed_password=get_password_hash(user_in.password),
-        full_name=user_in.full_name,
-        university=user_in.university
+        full_name=user_in.full_name.strip(),
+        university=user_in.university,
+        department=user_in.department,
+        academic_year=user_in.academic_year,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return user_profile(user)
+
 
 @router.post("/login", response_model=Token)
-def login_access_token(
-    db: Session = Depends(get_db), 
-    form_data: OAuth2PasswordRequestForm = Depends()
-):
-    """
-    OAuth2 compatible token login with live diagnostic logging.
-    """
-    try:
-        # Normalize incoming username (email) to lower case
-        email_lowercase = form_data.username.lower()
-        
-        # Use func.lower() for case-insensitive matching in the database
-        user = db.query(User).filter(func.lower(User.email) == email_lowercase).first()
-        
-        if not user:
-            print(f"AUTH DIAGNOSTIC: User NOT FOUND -> '{form_data.username}'")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-            
-        if not verify_password(form_data.password, user.hashed_password):
-            print(f"AUTH DIAGNOSTIC: Password MISMATCH for -> '{form_data.username}'")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        print(f"AUTH SUCCESS: User logged in -> '{user.email}'")
-        access_token = create_access_token(data={"sub": str(user.id)})
-        return {"access_token": access_token, "token_type": "bearer"}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail="Internal server error during authentication")
+def login_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    """OAuth2 password login (the 'username' field holds the email)."""
+    user = db.query(User).filter(func.lower(User.email) == form_data.username.strip().lower()).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"access_token": create_access_token(data={"sub": str(user.id)}), "token_type": "bearer"}
+
 
 @router.post("/forgot-password")
-def forgot_password(
-    email: str,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    """
-    Asynchronous forgot password endpoint.
-    Verifies user existence, generates a JWT reset token, and dispatches email via background task.
-    """
-    user = db.query(User).filter(User.email == email).first()
+def forgot_password(data: ForgotPasswordIn, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Email a 15-minute reset link. Always answers the same, so nobody can test which emails exist."""
+    user = db.query(User).filter(func.lower(User.email) == data.email.lower()).first()
     if user:
-        token = create_reset_token(email)
-        # We send the email in the background so the user doesn't wait for SMTP latency
-        background_tasks.add_task(send_reset_email, email, token)
-        
-    # We return success regardless to prevent email enumeration (Security Best Practice)
+        background_tasks.add_task(send_reset_email, user.email, create_reset_token(user.email))
     return {"status": "success", "message": "If an account exists with this email, reset instructions have been sent."}
 
+
 @router.post("/reset-password")
-def reset_password(
-    token: str,
-    new_password: str,
-    db: Session = Depends(get_db)
-):
-    """
-    Resets the user password using a valid JWT reset token.
-    """
-    email = verify_reset_token(token)
+def reset_password(data: ResetPasswordIn, db: Session = Depends(get_db)):
+    """Set a new password with a valid reset token. (Sent in the request body, never in the URL,
+    so the password does not end up in server logs.)"""
+    email = verify_reset_token(data.token)
     if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
-        )
-    
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired - request a new one.")
     user = db.query(User).filter(User.email == email).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User associated with this token no longer exists"
-        )
-        
-    user.hashed_password = get_password_hash(new_password)
+        raise HTTPException(status_code=404, detail="The account for this link no longer exists.")
+    user.hashed_password = get_password_hash(data.new_password)
     db.commit()
-    
-    return {"status": "success", "message": "Password updated successfully. You can now log in."}
+    return {"status": "success", "message": "Password updated. You can now sign in."}

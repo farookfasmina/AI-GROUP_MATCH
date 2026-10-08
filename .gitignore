@@ -57,3 +57,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local runtime files
+backend/web/
+backend/uploads/
+backend/*.db
+backend/email_debug.log
+.pytest_cache/

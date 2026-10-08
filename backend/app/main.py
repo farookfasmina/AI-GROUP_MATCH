@@ -1,59 +1,73 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import sys
 import os
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
 
-# Ensure the backend root is in the Python path
+# Make the backend folder importable (core, models, routes, services)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
 from core.config import settings
-from core.database import engine, Base
-from models import all_models # Import models to ensure they are registered with Base.metadata
+from core.database import Base, SessionLocal, add_missing_columns, engine
+from models import all_models  # noqa: F401 - registers the tables
+from routes.api_v1 import api_router
+from services.seed import seed
 
-# Create database tables if they do not exist
-try:
+@asynccontextmanager
+async def lifespan(_app):
     Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"Warning: Could not connect to the database. Ensure postgres is running. Error: {e}")
+    add_missing_columns()
+    db = SessionLocal()
+    try:
+        seed(db)
+    finally:
+        db.close()
+    yield
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.PROJECT_VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
-)
 
-# Mount the static files directory to serve shared chat files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Enable CORS for all local development variants
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION, lifespan=lifespan,
+              openapi_url=f"{settings.API_V1_STR}/openapi.json", docs_url="/docs")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
 )
 
-@app.get("/")
-def root():
-    return {
-        "message": "Welcome to the AI Study Group Platform API",
-        "docs": "Visit /docs for Swagger UI API documentation."
-    }
 
-from routes.api_v1 import api_router
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
 
-# Include the central v1 routing tree
+
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Shared chat files. The folder is created if missing (the first version crashed on a fresh
+# checkout because static/ did not exist).
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
+# The built React app (frontend/dist copied to backend/web) is served from the same address,
+# so one deployment runs the whole platform.
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+if WEB_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        if path.startswith(("api/", "uploads/")):
+            raise HTTPException(status_code=404, detail="Not found")
+        file = (WEB_DIR / path).resolve()
+        if path and file.is_file() and WEB_DIR.resolve() in file.parents:
+            return FileResponse(file)
+        return FileResponse(WEB_DIR / "index.html")
+else:
+    @app.get("/")
+    def root():
+        return {"message": "StudyMatch AI API", "docs": "/docs"}

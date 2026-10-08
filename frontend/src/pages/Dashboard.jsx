@@ -1,222 +1,147 @@
-import { useContext, useEffect, useState } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import api from '../api';
-import { Users, BookOpen, Bell, Calendar, ChevronRight, Activity, Sparkles, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import AIAssistantWidget from '../components/AIAssistantWidget';
+import { CalendarClock, ClipboardCheck, Inbox, Lightbulb, MapPin, MessageSquareHeart, Sparkles, UserPlus, UsersRound } from 'lucide-react';
+import api, { errorText } from '../api';
+import InvitationCard from '../components/InvitationCard';
+import { Badge, Button, Card, CardHeader, Empty, ErrorBox, PageHeader, ScoreRing, Spinner, Stat, StatusBadge, useToast } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
+import { dateTime } from '../lib/format';
+
+function StudyTip() {
+  const [tips, setTips] = useState(null);
+  useEffect(() => {
+    api.get('/ai/insights').then((r) => setTips(r.data)).catch(() => setTips([]));
+  }, []);
+  if (!tips?.length) return null;
+  const challenge = tips.find((t) => t.type === 'challenge');
+  const resource = tips.find((t) => t.type === 'resource');
+  return (
+    <Card>
+      <CardHeader title="Study tip of the day" subtitle="Picked for your subjects" icon={Lightbulb} />
+      <div className="space-y-4 p-5 text-sm">
+        {challenge && (<div><Badge tone="emerald">Challenge</Badge><p className="mt-2 font-semibold text-slate-900">{challenge.title}</p><p className="mt-1 text-slate-600">{challenge.content}</p></div>)}
+        {resource && (<div><Badge tone="amber">Resource</Badge><p className="mt-2 font-semibold text-slate-900">{resource.title}</p><p className="mt-1 text-slate-600">{resource.content}</p></div>)}
+      </div>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
-  const { currentUser } = useContext(AuthContext);
-  
-  const [stats, setStats] = useState({
-    matchesCount: 0,
-    groupsCount: 0,
-    unreadNotifs: 0,
-    availabilities: 0
-  });
+  const { user } = useAuth();
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [finding, setFinding] = useState(false);
 
-  const [upcomingSession, setUpcomingSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-
+  const load = () =>
+    Promise.all([api.get('/groups/me'), api.get('/sessions/me'), api.get('/users/me/survey')])
+      .then(([g, s, sv]) => setData({ groups: g.data, sessions: s.data, survey: sv.data }))
+      .catch((e) => setError(errorText(e)));
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [matchesRes, groupsRes, notifsRes, availRes, sessionsRes] = await Promise.allSettled([
-          api.get('/matches/me'),
-          api.get('/groups'), 
-          api.get('/notifications'),
-          api.get('/availability'),
-          api.get('/sessions/me')
-        ]);
-        
-        let mCount = matchesRes.status === 'fulfilled' ? matchesRes.value.data.length : 0;
-        let gCount = groupsRes.status === 'fulfilled' ? groupsRes.value.data.length : 0;
-        let nCount = notifsRes.status === 'fulfilled' ? notifsRes.value.data.filter(n => !n.is_read).length : 0;
-        let aCount = availRes.status === 'fulfilled' ? availRes.value.data.length : 0;
-        
-        if (sessionsRes.status === 'fulfilled' && sessionsRes.value.data.length > 0) {
-          setUpcomingSession(sessionsRes.value.data[0]);
-        }
-
-        setStats({
-          matchesCount: mCount,
-          groupsCount: gCount,
-          unreadNotifs: nCount,
-          availabilities: aCount
-        });
-      } catch (err) {
-        console.error("Dashboard metric fetch error", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
+    load();
   }, []);
 
-  const statCards = [
-    {
-      title: "Matches",
-      value: stats.matchesCount,
-      icon: Users,
-      color: "text-indigo-600",
-      link: "/matches"
-    },
-    {
-      title: "Groups",
-      value: stats.groupsCount,
-      icon: BookOpen,
-      color: "text-emerald-600",
-      link: "/groups"
-    },
-    {
-      title: "Alerts",
-      value: stats.unreadNotifs,
-      icon: Bell,
-      color: "text-rose-600",
-      link: "/notifications"
-    },
-    {
-      title: "Schedule",
-      value: stats.availabilities,
-      icon: Zap,
-      color: "text-amber-600",
-      link: "/preferences"
+  if (error) return <ErrorBox onRetry={load}>{error}</ErrorBox>;
+  if (!data) return <Spinner />;
+
+  const invites = data.groups.filter((g) => g.status === 'proposed' && g.my_status === 'pending');
+  const active = data.groups.filter((g) => g.status === 'active' && g.my_status === 'accepted');
+  const feedbackDue = active.filter((g) => g.kind !== 'manual' && !g.my_feedback);
+
+  const findNow = async () => {
+    setFinding(true);
+    try {
+      const r = await api.post('/matches/find-group');
+      toast(r.data.message, r.data.found ? 'success' : 'error');
+      load();
+      window.dispatchEvent(new Event('sm:notifications'));
+    } catch (e) {
+      toast(errorText(e), 'error');
+    } finally {
+      setFinding(false);
     }
-  ];
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-hidden">
-      <Navbar />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        
-        {/* Adjusting top and left padding to account for fixed Navbar (h-16) and Sidebar (w-64) */}
-        <main className="flex-1 overflow-y-auto bg-slate-50/50 pt-16 md:pl-64">
-          <div className="max-w-7xl mx-auto p-6 lg:p-10 pb-24">
-            
-            {/* Header: Pro Greeting Section */}
-            <div className="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-10 mb-10 shadow-2xl animate-pro-fade-in">
-               <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-               <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-purple-500/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2" />
-               
-               <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-8">
-                 <div className="flex-1">
-                   <div className="flex items-center gap-3 mb-4">
-                      <div className="px-3 py-1 bg-indigo-500/10 border border-indigo-400/20 rounded-full">
-                         <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Core Synchronized</span>
-                      </div>
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                   </div>
-                   <h1 className="text-4xl font-black text-white tracking-tight leading-none mb-3">
-                     Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{currentUser?.full_name?.split(' ')[0] || 'Member'}</span>!
-                   </h1>
-                   <p className="text-lg text-slate-400 font-medium opacity-90">Your academic synergy is reaching peak optimization.</p>
-                 </div>
-                 
-                 <div className="hidden lg:flex items-center gap-6 pb-2">
-                    <div className="text-right border-r border-slate-800 pr-6">
-                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Node Identifier</p>
-                       <p className="text-sm font-black text-white">{currentUser?.university || "Virtual Center"}</p>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Status</p>
-                       <p className="text-sm font-black text-emerald-400">Authenticated</p>
-                    </div>
-                 </div>
-               </div>
-            </div>
+    <div className="space-y-8">
+      <PageHeader title={`Welcome back, ${user.full_name?.split(' ')[0] || 'there'}`} subtitle="Your matches, groups and sessions at a glance."
+        action={<Button onClick={findNow} loading={finding} icon={Sparkles}>Find me a study group</Button>} />
 
-            {/* Metric Bento Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              {statCards.map((card, idx) => {
-                const Icon = card.icon;
-                return (
-                  <Link 
-                    key={idx} 
-                    to={card.link}
-                    className="group glass-card p-8 rounded-[2rem] hover-lift animate-card-float"
-                    style={{ animationDelay: `${idx * 100}ms` }}
-                  >
-                    <div className="flex justify-between items-start mb-10">
-                       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
-                          <Icon className={`h-6 w-6 ${card.color} group-hover:scale-110 transition-transform`} />
-                       </div>
-                       <ChevronRight className="h-5 w-5 text-slate-200 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
-                    </div>
-                     <div>
-                        <p className="text-5xl font-black text-slate-900 tracking-tighter mb-2">
-                          {loading ? "..." : card.value}
-                        </p>
-                        <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                          {card.title}
-                          <div className={`h-1.5 w-1.5 rounded-full ${card.color.replace('text-', 'bg-')}`} />
-                        </h3>
-                     </div>
-                  </Link>
-                );
-              })}
-            </div>
-            
-            {/* Action Matrix: Widgets & Session */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-               <div className="lg:col-span-8 animate-pro-fade-in delay-500">
-                 <AIAssistantWidget />
-               </div>
-               
-               <div className="lg:col-span-4 space-y-8">
-                 {/* Session Card */}
-                 <div className="glass-card p-10 rounded-[2.5rem] relative overflow-hidden h-full flex flex-col animate-pro-fade-in delay-700">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl" />
-                    
-                    <div className="flex items-center gap-4 mb-10">
-                       <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                          <Activity className="h-6 w-6 text-indigo-600" />
-                       </div>
-                       <h3 className="text-xl font-black text-slate-900 tracking-tight">Timeline</h3>
-                    </div>
-                    
-                    {upcomingSession ? (
-                      <div className="mt-2 space-y-6 flex-1">
-                        <div>
-                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Next Session</p>
-                          <p className="text-2xl font-black text-indigo-900 leading-[1.1] mb-2">{upcomingSession.title}</p>
-                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-100">
-                             <Calendar className="h-3 w-3" />
-                             {new Date(upcomingSession.start_time).toLocaleDateString()}
-                          </div>
-                        </div>
-                        
-                        <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-                           <p className="text-sm font-black text-slate-900 mb-1">
-                             {new Date(upcomingSession.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                           </p>
-                           <p className="text-xs font-bold text-slate-500 uppercase">Duration: {upcomingSession.duration_minutes}m</p>
-                        </div>
-                        
-                        <div className="pt-4 mt-auto">
-                           <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 shadow-xl transition-all hover-lift">
-                              Join Deployment Hub
-                           </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
-                         <div className="mb-6 p-6 bg-slate-50 rounded-full">
-                           <Zap className="h-8 w-8 text-slate-300" />
-                         </div>
-                         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">No Active Tracks</p>
-                         <p className="text-xs font-medium text-slate-400 px-10">Sync with a Study Group to initialize session data.</p>
-                      </div>
-                    )}
-                 </div>
-               </div>
-            </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Stat label="Active groups" value={active.length} icon={UsersRound} />
+        <Stat label="Invitations" value={invites.length} icon={Inbox} tone="amber" />
+        <Stat label="Upcoming sessions" value={data.sessions.length} icon={CalendarClock} tone="sky" />
+        <Link to="/matches" className="block"><Stat label="Study partners" value="Top 5" hint="See your KNN matches" icon={UserPlus} tone="emerald" /></Link>
+      </div>
 
+      {invites.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900"><Sparkles className="h-5 w-5 text-brand-600" /> New matches for you</h2>
+          <div className="grid gap-4 xl:grid-cols-2">{invites.map((g) => <InvitationCard key={g.id} group={g} onDone={load} />)}</div>
+        </section>
+      )}
+
+      {feedbackDue.length > 0 && (
+        <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50/60 p-5 sm:flex-row sm:items-center">
+          <MessageSquareHeart className="h-6 w-6 shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="font-semibold text-slate-900">How is it going?</p>
+            <p className="text-sm text-slate-600">Rate {feedbackDue.map((g) => g.name).join(', ')} - your answers teach the AI to match better.</p>
           </div>
-        </main>
+          <Link to={`/groups/${feedbackDue[0].id}?tab=feedback`}><Button size="sm" variant="secondary">Give feedback</Button></Link>
+        </Card>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader title="My groups" icon={UsersRound} action={<Link to="/groups" className="text-sm font-semibold text-brand-600 hover:underline">View all</Link>} />
+          {active.length === 0 ? (
+            <Empty icon={UsersRound} title="No active groups yet">Accept an invitation, or press "Find me a study group".</Empty>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {active.map((g) => (
+                <li key={g.id}>
+                  <Link to={`/groups/${g.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50">
+                    {g.match_score != null ? <ScoreRing score={g.match_score / 100} size={48} /> : <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100"><UsersRound className="h-5 w-5 text-slate-400" /></div>}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-slate-900">{g.name}</p>
+                      <p className="truncate text-sm text-slate-500">{g.member_count} members{g.meeting_slot ? ` · ${g.meeting_slot}` : ''}</p>
+                    </div>
+                    <StatusBadge status={g.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card>
+          <CardHeader title="Upcoming sessions" icon={CalendarClock} />
+          {data.sessions.length === 0 ? <Empty title="Nothing planned">Plan a session from your group page.</Empty> : (
+            <ul className="divide-y divide-slate-100">
+              {data.sessions.slice(0, 5).map((s) => (
+                <li key={s.id} className="px-5 py-3">
+                  <Link to={`/groups/${s.group_id}?tab=sessions`} className="block">
+                    <p className="font-medium text-slate-900">{s.title}</p>
+                    <p className="text-sm text-slate-500">{dateTime(s.start_time)}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500"><MapPin className="h-3 w-3" />{s.location || 'Place not set'} · {s.group_name}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <StudyTip />
+        {!data.survey && (
+          <Card className="flex flex-col justify-center gap-3 p-6">
+            <ClipboardCheck className="h-7 w-7 text-brand-600" />
+            <p className="font-semibold text-slate-900">Help evaluate this platform</p>
+            <p className="text-sm text-slate-600">A 2-minute survey on how fair, useful and easy StudyMatch is - part of the research.</p>
+            <Link to="/survey"><Button size="sm" variant="soft">Take the survey</Button></Link>
+          </Card>
+        )}
       </div>
     </div>
   );
