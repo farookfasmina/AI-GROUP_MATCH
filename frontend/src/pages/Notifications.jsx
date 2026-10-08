@@ -1,91 +1,89 @@
-import { useEffect, useState, useContext } from 'react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import { Bell, CheckCircle2 } from 'lucide-react';
-import api from '../api';
-import { NotificationContext } from '../context/NotificationContext';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, CalendarClock, CheckCheck, Info, MessageSquare, Sparkles, Trash2, UserPlus, UsersRound } from 'lucide-react';
+import api, { errorText } from '../api';
+import { Button, Card, Empty, ErrorBox, PageHeader, Spinner, cx, useToast } from '../components/ui';
+import { useApi } from '../lib/hooks';
+import { timeAgo } from '../lib/format';
+
+const ICONS = { group_invite: Sparkles, match_request: UserPlus, group: UsersRound, session: CalendarClock, message: MessageSquare };
+const TONES = { group_invite: 'bg-brand-50 text-brand-600', match_request: 'bg-amber-50 text-amber-600', group: 'bg-emerald-50 text-emerald-600',
+  session: 'bg-sky-50 text-sky-600', message: 'bg-violet-50 text-violet-600' };
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const { markAllAsRead, unreadCount } = useContext(NotificationContext);
+  const navigate = useNavigate();
+  const toast = useToast();
+  const { data, error, loading, reload, setData } = useApi('/notifications');
+  const [busy, setBusy] = useState(null);
+  if (loading) return <Spinner />;
+  if (error) return <ErrorBox onRetry={reload}>{error}</ErrorBox>;
 
-  const loadNotifications = () => {
-    api.get('/notifications/').then(res => setNotifications(res.data)).catch(console.error);
+  const changed = () => window.dispatchEvent(new Event('sm:notifications'));
+  const markAll = async () => {
+    await api.put('/notifications/read-all');
+    setData(data.map((n) => ({ ...n, is_read: true })));
+    changed();
   };
-
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const handleMarkAllRead = async () => {
-    setLoading(true);
-    await markAllAsRead();
-    loadNotifications(); // Refresh page mapping locally to map is_read correctly
-    setLoading(false);
+  const clearAll = async () => {
+    await api.delete('/notifications/clear-all');
+    setData([]);
+    changed();
   };
+  const open = async (n) => {
+    if (!n.is_read) {
+      await api.post(`/notifications/${n.id}/read`).catch(() => {});
+      changed();
+    }
+    if (n.link && n.link !== '/notifications') navigate(n.link);
+    else setData(data.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+  };
+  const accept = async (n) => {
+    setBusy(n.id);
+    try {
+      const r = await api.post(`/matches/${n.payload_id}/accept`);
+      toast('Request accepted - your private group is ready');
+      changed();
+      navigate(`/groups/${r.data.group_id}`);
+    } catch (e) {
+      toast(errorText(e), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const unread = data.filter((n) => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Navbar />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
-          <div className="max-w-4xl mx-auto px-4 sm:px-8 pb-12">
-            
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 border-b border-slate-200 pb-6">
-              <div>
-                <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Notifications</h1>
-                <p className="text-slate-600 font-medium">Platform matching alerts and system updates.</p>
-              </div>
-              
-              {unreadCount > 0 && (
-                <button 
-                  onClick={handleMarkAllRead}
-                  disabled={loading}
-                  className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-5 py-2.5 rounded-full text-sm font-extrabold hover:bg-indigo-100 transition-colors border border-indigo-200 disabled:opacity-50"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {loading ? 'Syncing...' : 'Mark All As Read'}
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-4">
-              {notifications.length > 0 ? notifications.map(n => (
-                <div key={n.id} className={`p-6 rounded-2xl border ${!n.is_read ? 'bg-indigo-50/40 border-indigo-200' : 'bg-white border-slate-200'} flex items-start gap-5 shadow-sm hover:shadow transition-shadow relative overflow-hidden`}>
-                  
-                  {/* Decorative unread indicator strip */}
-                  {!n.is_read && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-500"></div>}
-                  
-                  <div className={`p-3 rounded-full shrink-0 mt-1 ${!n.is_read ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
-                    <Bell className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className={`text-base leading-relaxed ${!n.is_read ? 'text-slate-900 font-bold' : 'text-slate-600 font-medium'}`}>{n.message}</p>
-                    <p className="text-[11px] font-black text-slate-400 mt-2.5 uppercase tracking-widest">{new Date(n.created_at).toLocaleString()}</p>
-                  </div>
-                  
-                  {/* Visual Unread "NEW" badge */}
-                  {!n.is_read && (
-                    <span className="ml-auto bg-rose-100 text-rose-700 font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider border border-rose-200">
-                      New
-                    </span>
-                  )}
-                </div>
-              )) : (
-                <div className="bg-white p-12 text-center rounded-3xl border border-dashed border-slate-300">
-                  <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                     <Bell className="h-8 w-8 text-slate-300" />
-                  </div>
-                  <h3 className="text-xl font-extrabold text-slate-900 mb-2">Inbox Zero is achieved.</h3>
-                  <p className="text-slate-500 font-medium">You have absolutely no alerts pending at this time in the system.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Notifications" subtitle={unread ? `${unread} unread` : 'You are all caught up'}
+        action={data.length > 0 && <div className="flex gap-2">
+          {unread > 0 && <Button variant="secondary" onClick={markAll} icon={CheckCheck}>Mark all read</Button>}
+          <Button variant="ghost" onClick={clearAll} icon={Trash2}>Clear</Button>
+        </div>} />
+      <Card>
+        {data.length === 0 ? <Empty icon={Bell} title="No notifications">You are notified here when you get a match or a message.</Empty> : (
+          <ul className="divide-y divide-slate-100">
+            {data.map((n) => {
+              const Icon = ICONS[n.type] || Info;
+              return (
+                <li key={n.id} className={cx('flex items-start gap-4 px-5 py-4', !n.is_read && 'bg-brand-50/40')}>
+                  <div className={cx('rounded-lg p-2', TONES[n.type] || 'bg-slate-100 text-slate-500')}><Icon className="h-4 w-4" /></div>
+                  <button onClick={() => open(n)} className="min-w-0 flex-1 text-left">
+                    <p className={cx('text-sm', n.is_read ? 'text-slate-700' : 'font-semibold text-slate-900')}>{n.message}</p>
+                    <p className="mt-1 text-xs text-slate-400">{timeAgo(n.created_at)}</p>
+                    {n.type === 'match_request' && !n.is_read && (
+                      <span className="mt-2 inline-flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" loading={busy === n.id} onClick={() => accept(n)}>Accept</Button>
+                        <Button size="sm" variant="secondary" onClick={() => open(n)}>Ignore</Button>
+                      </span>
+                    )}
+                  </button>
+                  {!n.is_read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-label="Unread" />}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

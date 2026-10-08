@@ -1,26 +1,25 @@
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
-class StudyGroupBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    subject: str
+from pydantic import BaseModel, Field
 
-class StudyGroupCreate(StudyGroupBase):
-    pass
 
-class StudyGroupResponse(StudyGroupBase):
-    id: int
-    creator_id: int
-    created_at: datetime
-    user_role: str = "" # Default to empty string instead of None to ensure key exists
+class StudyGroupCreate(BaseModel):
+    name: str = Field(min_length=3, max_length=120)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    subject: str = Field(min_length=2, max_length=120)
 
-    class Config:
-        from_attributes = True
 
-class MatchResponse(BaseModel):
-    # Represents a grouping suggestion made by the platform
-    group: StudyGroupResponse
-    match_score: float
-    reason: str
+class RespondIn(BaseModel):
+    accept: bool
+
+
+class MatchRunIn(BaseModel):
+    subjects: List[str] = Field(default_factory=list)
+    min_size: int = Field(default=3, ge=3, le=6)
+    max_size: int = Field(default=5, ge=3, le=8)
+
+
+class SubjectIn(BaseModel):
+    code: str = Field(min_length=2, max_length=20)
+    name: str = Field(min_length=2, max_length=120)
+    active: bool = True

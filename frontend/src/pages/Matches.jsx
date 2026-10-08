@@ -1,128 +1,147 @@
-import { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import MatchCard from '../components/MatchCard';
-import SessionModal from '../components/SessionModal';
-import FeedbackModal from '../components/FeedbackModal';
-import api from '../api';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { CalendarClock, CheckCircle2, Info, MessageSquare, Star, UserPlus } from 'lucide-react';
+import api, { errorText } from '../api';
+import { Meter } from '../components/charts';
+import { Avatar, Badge, Button, Card, Empty, ErrorBox, Modal, PageHeader, ScoreRing, Spinner, StarInput, useToast } from '../components/ui';
+import { useApi } from '../lib/hooks';
+import { optionLabel } from '../lib/format';
 
-export default function Matches() {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const FACTOR_LABELS = {
+  subject_overlap: 'Shared subjects', availability_overlap: 'Shared free time', study_type_match: 'Study type',
+  collab_tendency_match: 'Collaboration style', learning_style_match: 'Learning style',
+  comm_pref_match: 'Communication', competency_match: 'Competency balance',
+};
 
-  // Scheduling Modal State
-  const [sessionModalOpen, setSessionModalOpen] = useState(false);
-  const [schedulingGroup, setSchedulingGroup] = useState(null);
-
-  // Feedback Modal State
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
-  const [ratingMatch, setRatingMatch] = useState(null);
-
-  useEffect(() => {
-    const loadMatches = async () => {
-      try {
-        const response = await api.get('/matches/me');
-        setMatches(response.data);
-      } catch (err) {
-        setError(err.response?.data?.detail || "Network error: Failed to connect to matchmaking service.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadMatches();
-  }, []);
-
-  const handleConnect = async (targetId) => {
+export function FeedbackModal({ open, onClose, title, subtitle, endpoint, withContinue, initial, onSaved }) {
+  const toast = useToast();
+  const [f, setF] = useState(initial || { compatibility_rating: 0, collaboration_quality: 0, scheduling_ease: 0, feedback_text: '', would_continue: true });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const save = async () => {
+    if (!f.compatibility_rating || !f.collaboration_quality || !f.scheduling_ease) return setError('Please rate all three questions.');
+    setBusy(true);
+    setError('');
     try {
-      await api.post(`/matches/${targetId}/connect`);
-      return true; // Success for the card state
-    } catch (err) {
-      alert(err.response?.data?.detail || "Connection failed.");
-      return false;
+      const body = { ...f, feedback_text: f.feedback_text || null };
+      if (!withContinue) delete body.would_continue;
+      await api.post(endpoint, body);
+      toast('Thank you - your feedback helps the AI match better');
+      onSaved?.();
+      onClose();
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
     }
   };
+  return (
+    <Modal open={open} onClose={onClose} title={title}
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={save} loading={busy}>Submit</Button></>}>
+      <div className="space-y-5">
+        {subtitle && <p className="text-sm text-slate-500">{subtitle}</p>}
+        <StarInput label="How well did your subjects and goals fit?" value={f.compatibility_rating} onChange={(v) => setF({ ...f, compatibility_rating: v })} />
+        <StarInput label="How good was the collaboration?" value={f.collaboration_quality} onChange={(v) => setF({ ...f, collaboration_quality: v })} />
+        <StarInput label="How easy was it to find times to meet?" value={f.scheduling_ease} onChange={(v) => setF({ ...f, scheduling_ease: v })} />
+        {withContinue && (
+          <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+            <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={f.would_continue} onChange={(e) => setF({ ...f, would_continue: e.target.checked })} />
+            I would like to keep studying with this group
+          </label>
+        )}
+        <div>
+          <label className="label" htmlFor="fbt">Anything else? <span className="font-normal text-slate-400">(optional)</span></label>
+          <textarea id="fbt" rows={3} maxLength={1000} className="input" value={f.feedback_text || ''} onChange={(e) => setF({ ...f, feedback_text: e.target.value })} />
+        </div>
+        <ErrorBox>{error}</ErrorBox>
+      </div>
+    </Modal>
+  );
+}
 
-  const handleScheduleRequest = async (match) => {
+function MatchCard({ m, onChange }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [why, setWhy] = useState(false);
+  const [rate, setRate] = useState(false);
+
+  const connect = async () => {
+    setBusy(true);
     try {
-      // First, ensure a private 1-on-1 group exists for this match
-      const response = await api.post(`/matches/${match.target_user_id}/init-private-group`);
-      const { group_id, name } = response.data;
-      
-      setSchedulingGroup({ id: group_id, name: name });
-      setSessionModalOpen(true);
-    } catch (err) {
-      alert(err.response?.data?.detail || "Failed to initialize scheduling session.");
+      await api.post(`/matches/${m.target_user_id}/connect`);
+      toast(`Request sent to ${m.full_name}`);
+      onChange();
+    } catch (e) {
+      toast(errorText(e), 'error');
+    } finally {
+      setBusy(false);
     }
-  };
-
-  const handleRateRequest = (match) => {
-    setRatingMatch(match);
-    setFeedbackModalOpen(true);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
-          <div className="max-w-5xl mx-auto px-4 sm:px-8 pb-12">
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">My Top Matches</h1>
-            <p className="text-slate-600 font-medium mb-8">Calculated by our AI engine based on subjects, availability, and learning style.</p>
-            
-            {error && (
-              <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-600 px-5 py-4 rounded-xl text-sm font-bold shadow-sm">
-                {error}
-              </div>
-            )}
-            
-            {loading ? (
-              <div className="flex items-center justify-center p-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                <span className="ml-3 text-slate-500 font-medium text-sm">Running matchmaking algorithm...</span>
-              </div>
-            ) : matches.length > 0 ? (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {matches.map(m => (
-                  <MatchCard 
-                    key={m.target_user_id} 
-                    match={m} 
-                    onConnect={handleConnect}
-                    onSchedule={handleScheduleRequest}
-                    onRate={handleRateRequest}
-                  />
-                ))}
-              </div>
-            ) : !error ? (
-              <div className="bg-white p-12 text-center rounded-2xl border border-dashed border-slate-300">
-                <p className="text-slate-500 font-bold mb-2">No matches found right now.</p>
-                <p className="text-slate-400 text-sm font-medium">Try updating your preferences to cast a wider net.</p>
-              </div>
-            ) : null}
+    <Card className="flex flex-col p-5">
+      <div className="flex items-start gap-4">
+        <Avatar name={m.full_name} id={m.target_user_id} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-bold text-slate-900">{m.full_name}</h3>
+          <p className="truncate text-sm text-slate-500">{m.department}{m.academic_year ? ` · ${m.academic_year}` : ''}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {m.shared_subjects.slice(0, 3).map((s) => <Badge key={s} tone="brand" className="capitalize">{s}</Badge>)}
+            {m.competency_level && <Badge>{m.competency_level}</Badge>}
+            {m.collaboration_tendency && <Badge>{optionLabel('collaboration_tendency', m.collaboration_tendency)}</Badge>}
           </div>
-        </main>
+        </div>
+        <ScoreRing score={m.compatibility_score / 100} size={60} />
       </div>
-
-      {sessionModalOpen && (
-        <SessionModal 
-          isOpen={sessionModalOpen}
-          onClose={() => setSessionModalOpen(false)}
-          groupId={schedulingGroup?.id}
-          groupName={schedulingGroup?.name}
-          onSessionCreated={() => alert(`Session scheduled with ${schedulingGroup.name}!`)}
-        />
+      <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{m.explanation}</p>
+      <button onClick={() => setWhy(!why)} className="mt-2 inline-flex items-center gap-1 self-start text-xs font-semibold text-brand-600 hover:underline">
+        <Info className="h-3.5 w-3.5" /> {why ? 'Hide' : 'Show'} the score breakdown
+      </button>
+      {why && (
+        <div className="mt-3 space-y-2">
+          {Object.entries(m.factors).map(([k, v]) => (
+            <div key={k}>
+              <div className="mb-0.5 flex justify-between text-xs"><span className="text-slate-600">{FACTOR_LABELS[k]}</span><span className="font-semibold tabular-nums">{Math.round(v * 100)}%</span></div>
+              <Meter value={v} />
+            </div>
+          ))}
+          <p className="text-xs text-slate-500">KNN similarity {m.knn_similarity}% · {m.shared_hours} shared free hours a week</p>
+        </div>
       )}
+      <div className="mt-auto flex flex-wrap gap-2 pt-4">
+        {m.partner_group_id ? (
+          <>
+            <Link to={`/groups/${m.partner_group_id}`}><Button size="sm" icon={MessageSquare}>Open chat</Button></Link>
+            <Link to={`/groups/${m.partner_group_id}?tab=sessions`}><Button size="sm" variant="secondary" icon={CalendarClock}>Schedule</Button></Link>
+          </>
+        ) : m.requested ? (
+          <Button size="sm" variant="success" icon={CheckCircle2} disabled>Request sent</Button>
+        ) : (
+          <Button size="sm" onClick={connect} loading={busy} icon={UserPlus}>Ask to study together</Button>
+        )}
+        {m.partner_group_id && (
+          <Button size="sm" variant="ghost" icon={Star} onClick={() => setRate(true)}>{m.rated ? 'Update rating' : 'Rate partner'}</Button>
+        )}
+      </div>
+      {rate && (
+        <FeedbackModal open onClose={() => setRate(false)} title={`Rate ${m.full_name}`} endpoint={`/matches/${m.target_user_id}/feedback`} onSaved={onChange}
+          subtitle="Your rating is private and trains the matching model." />
+      )}
+    </Card>
+  );
+}
 
-      {feedbackModalOpen && (
-        <FeedbackModal 
-          isOpen={feedbackModalOpen}
-          onClose={() => setFeedbackModalOpen(false)}
-          targetUserId={ratingMatch?.target_user_id}
-          targetUserName={ratingMatch?.full_name}
-          onFeedbackSubmitted={() => alert(`Feedback submitted for ${ratingMatch.full_name}!`)}
-        />
+export default function Matches() {
+  const { data, error, loading, reload } = useApi('/matches/me');
+  return (
+    <div className="space-y-6">
+      <PageHeader title="My top matches" subtitle="K-Nearest Neighbours finds students similar to you, then each one is re-ranked on 7 compatibility factors." />
+      {loading ? <Spinner label="Running the matching model" /> : error ? (
+        <ErrorBox onRetry={reload}>{error} {error.includes('Preferences') && <Link className="font-semibold underline" to="/preferences">Open Preferences</Link>}</ErrorBox>
+      ) : data.length === 0 ? (
+        <Card><Empty icon={UserPlus} title="No matches yet">Not enough students have completed their profile. Add more subjects or free time to widen the search.</Empty></Card>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-2">{data.map((m) => <MatchCard key={m.target_user_id} m={m} onChange={reload} />)}</div>
       )}
     </div>
   );

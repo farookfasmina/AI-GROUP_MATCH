@@ -1,108 +1,68 @@
-import { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import PreferenceForm from '../components/PreferenceForm';
-import AvailabilityForm from '../components/AvailabilityForm';
-import api from '../api';
+import { useEffect, useState } from 'react';
+import { Save } from 'lucide-react';
+import api, { errorText } from '../api';
+import { AvailabilitySection, StyleSection, SubjectsSection, formToPref, keysToAvailability, prefToForm, validate } from '../components/ProfileForm';
+import { Button, Card, ErrorBox, PageHeader, Spinner, Tabs, useToast } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
+
+const TABS = [{ value: 'subjects', label: 'Subjects' }, { value: 'style', label: 'Study style' }, { value: 'availability', label: 'Free time' }];
 
 export default function Preferences() {
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const [initialPrefs, setInitialPrefs] = useState(null);
-  const [initialAvail, setInitialAvail] = useState(null);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const toast = useToast();
+  const { refresh } = useAuth();
+  const [form, setForm] = useState(null);
+  const [catalogue, setCatalogue] = useState([]);
+  const [tab, setTab] = useState('subjects');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [prefRes, availRes] = await Promise.all([
-          api.get('/preferences/me'),
-          api.get('/availability/')
-        ]);
-        setInitialPrefs(prefRes.data);
-        setInitialAvail(availRes.data);
-        setDataLoaded(true);
-      } catch (err) {
-        console.error("Failed to load initial data", err);
-        setError("Failed to load your existing settings. Please refresh.");
-        setDataLoaded(true);
-      }
-    };
-    loadData();
+    Promise.all([api.get('/preferences/me'), api.get('/availability'), api.get('/preferences/subjects')])
+      .then(([p, a, s]) => {
+        setForm(prefToForm(p.data, a.data));
+        setCatalogue(s.data);
+      })
+      .catch((e) => setError(errorText(e)));
   }, []);
+  if (!form) return error ? <ErrorBox>{error}</ErrorBox> : <Spinner />;
+  const set = (patch) => setForm((f) => ({ ...f, ...(typeof patch === 'function' ? patch(f) : patch) }));
 
-  const handleUpdate = async (data) => {
-    setLoading(true);
-    setError(null);
-    setMsg("");
-    
-    try {
-      await api.put('/preferences/me', data);
-      setMsg("Successfully saved matchmaking preferences!");
-      setTimeout(() => setMsg(""), 4000);
-    } catch (e) {
-      setError(e.response?.data?.detail || "Failed to update your preferences securely.");
-    } finally {
-      setLoading(false);
+  const save = async () => {
+    for (const step of ['subjects', 'style', 'availability']) {
+      const problem = validate(form, step);
+      if (problem) {
+        setTab(step);
+        return setError(problem);
+      }
     }
-  };
-
-  const handleAvailabilityUpdate = async (slots) => {
-    setLoading(true);
-    setError(null);
-    setMsg("");
-
+    setBusy(true);
+    setError('');
     try {
-      await api.post('/availability/', slots);
-      setMsg("Successfully saved study schedule!");
-      setTimeout(() => setMsg(""), 4000);
+      await api.put('/preferences/me', formToPref(form));
+      await api.post('/availability', keysToAvailability(form.availability));
+      await refresh();
+      toast('Saved - your next matches use these preferences');
     } catch (e) {
-      setError(e.response?.data?.detail || "Failed to save study schedule.");
+      setError(errorText(e));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Navbar />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto pt-24 md:pl-64">
-          <div className="max-w-3xl mx-auto px-4 sm:px-8 pb-12">
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Study Preferences</h1>
-            <p className="text-slate-600 font-medium mb-8">Update your profile to get more accurate study group matches.</p>
-            
-            {/* Status Boxes */}
-            {msg && (
-              <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg text-sm font-bold shadow-sm animate-pulse">
-                {msg}
-              </div>
-            )}
-            {error && (
-              <div className="mb-6 bg-rose-50 border border-rose-200 text-rose-600 px-4 py-3 rounded-lg text-sm font-bold shadow-sm">
-                {error}
-              </div>
-            )}
-            {loading && (
-              <p className="text-sm font-semibold text-indigo-600 mb-4 animate-pulse">Saving settings across servers...</p>
-            )}
-            
-            {dataLoaded ? (
-              <>
-                <PreferenceForm initialData={initialPrefs} onSubmit={handleUpdate} />
-                <AvailabilityForm initialData={initialAvail} onSubmit={handleAvailabilityUpdate} />
-              </>
-            ) : (
-              <div className="flex justify-center py-12">
-                <p className="text-slate-500 font-medium animate-pulse">Loading preferences...</p>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Preferences" subtitle="What the matching uses. Groups you already have stay as they are."
+        action={<Button onClick={save} loading={busy} icon={Save}>Save changes</Button>} />
+      <ErrorBox>{error}</ErrorBox>
+      <Card>
+        <div className="px-2 pt-2"><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
+        <div className="p-5 sm:p-8">
+          {tab === 'subjects' && <SubjectsSection form={form} set={set} catalogue={catalogue} />}
+          {tab === 'style' && <StyleSection form={form} set={set} />}
+          {tab === 'availability' && <AvailabilitySection form={form} set={set} />}
+        </div>
+        <div className="flex justify-end border-t border-slate-100 px-5 py-4"><Button onClick={save} loading={busy} icon={Save}>Save changes</Button></div>
+      </Card>
     </div>
   );
 }

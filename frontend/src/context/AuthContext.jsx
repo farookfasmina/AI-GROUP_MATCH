@@ -1,57 +1,73 @@
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import api from '../api';
 
-export const AuthContext = createContext();
+export const AuthContext = createContext(null);
 
 export const useAuth = () => useContext(AuthContext);
 
+function hasToken() {
+  try {
+    return !!localStorage.getItem('study_token');
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(hasToken());
 
-  useEffect(() => {
-    // Automatically verify token and fetch user on application mount
-    const checkUser = async () => {
-      const token = localStorage.getItem('study_token');
-      if (token) {
-        try {
-          const res = await api.get('/users/me');
-          setCurrentUser(res.data);
-        } catch (error) {
-          console.error("Token invalid or expired", error);
-          localStorage.removeItem('study_token');
-        }
-      }
+  const refresh = useCallback(async () => {
+    if (!hasToken()) {
+      setCurrentUser(null);
       setLoading(false);
-    };
-    checkUser();
+      return null;
+    }
+    try {
+      const res = await api.get('/users/me');
+      setCurrentUser(res.data);
+      return res.data;
+    } catch {
+      setCurrentUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    refresh();
+    const onOut = () => setCurrentUser(null);
+    window.addEventListener('sm:signed-out', onOut);
+    return () => window.removeEventListener('sm:signed-out', onOut);
+  }, [refresh]);
+
   const login = async (email, password) => {
-    // Backend OAuth2 expects form-data for username and password
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
-    
-    const res = await api.post('/auth/login', formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    });
-    
-    localStorage.setItem('study_token', res.data.access_token);
-    
-    // Fetch profile immediately after caching token
-    const profileRes = await api.get('/users/me');
-    setCurrentUser(profileRes.data);
+    // The backend uses the OAuth2 password form: 'username' holds the email.
+    const form = new URLSearchParams();
+    form.append('username', email);
+    form.append('password', password);
+    const res = await api.post('/auth/login', form, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    try { localStorage.setItem('study_token', res.data.access_token); } catch { /* ignore */ }
+    const me = await api.get('/users/me');
+    setCurrentUser(me.data);
+    return me.data;
   };
 
   const logout = () => {
-    localStorage.removeItem('study_token');
+    try { localStorage.removeItem('study_token'); } catch { /* ignore */ }
     setCurrentUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, user: currentUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ currentUser, user: currentUser, login, logout, loading, refresh }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function homeFor(user) {
+  if (!user) return '/login';
+  if (user.is_platform_admin) return '/admin';
+  return user.profile_complete ? '/dashboard' : '/onboarding';
 }

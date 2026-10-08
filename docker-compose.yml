@@ -1,26 +1,35 @@
-version: "3.8"
-
+# Run the whole platform locally with PostgreSQL:  docker compose up --build
+# Then open http://localhost:8000  (demo student: student@demo.lk / Demo@1234)
 services:
-  api:
-    build:
-      context: ./backend
-    container_name: studymatch_backend
+  db:
+    image: postgres:16-alpine
     environment:
-      # host.docker.internal points to your Windows machine from inside the container
-      - DATABASE_URL=postgresql://postgres:Fasmina1209@host.docker.internal:5000/study_platform
-      - SECRET_KEY=secure-super-secret-production-key
+      POSTGRES_DB: study_platform
+      POSTGRES_USER: studymatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-only}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studymatch -d study_platform"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
     ports:
       - "8000:8000"
-    # Wait for the host's networking to be ready
-    restart: on-failure
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  web:
-    build:
-      context: ./frontend
-    container_name: studymatch_frontend
-    ports:
-      - "5173:80" # Maps local port 5173 to Nginx internal port 80
+    environment:
+      DATABASE_URL: postgresql://studymatch:${POSTGRES_PASSWORD:-local-dev-only}@db:5432/study_platform
+      SECRET_KEY: ${SECRET_KEY:-change-me-local-only}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@1234}
+      FRONTEND_URL: http://localhost:8000
+      SEED_DEMO: "true"
+    volumes:
+      - uploads:/app/uploads
     depends_on:
-      - api
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  uploads:
