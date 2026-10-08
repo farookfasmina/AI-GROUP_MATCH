@@ -64,3 +64,6 @@ backend/uploads/
 backend/*.db
 backend/email_debug.log
 .pytest_cache/
+
+# The frontend helpers folder is source code, not a Python build folder
+!frontend/src/lib/
