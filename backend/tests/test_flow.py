@@ -17,6 +17,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
+from core.config import settings  # noqa: E402
+
+# Never send real email from the tests, even when backend/.env holds a real Gmail login.
+settings.SMTP_USER = ""
+settings.SMTP_PASSWORD = ""
 
 API = "/api/v1"
 

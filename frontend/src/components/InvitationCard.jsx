@@ -32,24 +32,24 @@ export default function InvitationCard({ group, onDone }) {
             <Badge tone="white">{group.kind === 'buddy' ? 'Study buddy' : `Group of ${group.member_count}`}</Badge>
           </div>
           <h3 className="mt-3 text-xl font-bold leading-tight">{group.subject}</h3>
-          {group.meeting_slot && <p className="mt-1 flex items-center gap-1 text-sm text-white/90"><Clock className="h-3.5 w-3.5" />{group.meeting_slot}</p>}
+          {group.meeting_slot && <p className="mt-1 flex items-center gap-1 text-sm text-slate-800"><Clock className="h-3.5 w-3.5" />{group.meeting_slot}</p>}
         </div>
-        <div className="shrink-0 rounded-2xl bg-white/25 px-3 py-2 text-center">
+        <div className="shrink-0 rounded-2xl bg-white/70 px-3 py-2 text-center">
           <p className="text-2xl font-extrabold leading-none">{Math.round(group.match_score || 0)}%</p>
-          <p className="mt-1 text-[11px] font-semibold text-white/90">match</p>
+          <p className="mt-1 text-[11px] font-semibold text-slate-800">match</p>
         </div>
       </div>
-      <ul className="mt-3 space-y-1 text-sm text-white/95">
+      <ul className="mt-3 space-y-1 text-sm text-slate-800">
         {(group.reasons || []).slice(0, 3).map((r) => <li key={r} className="flex gap-2"><span>✓</span>{r}</li>)}
       </ul>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button onClick={() => respond(true)} disabled={!!busy} className="rounded-full bg-white px-5 py-2 text-sm font-bold text-slate-900 shadow hover:bg-slate-50 disabled:opacity-60">
           {busy === 'yes' ? 'Joining...' : 'Accept'}
         </button>
-        <button onClick={() => respond(false)} disabled={!!busy} className="rounded-full bg-white/25 px-5 py-2 text-sm font-bold text-white hover:bg-white/35 disabled:opacity-60">
+        <button onClick={() => respond(false)} disabled={!!busy} className="rounded-full bg-white/50 px-5 py-2 text-sm font-bold text-slate-900 hover:bg-white/70 disabled:opacity-60">
           {busy === 'no' ? 'Declining...' : 'Decline'}
         </button>
-        <Link to={`/groups/${group.id}`} className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-white hover:underline">
+        <Link to={`/groups/${group.id}`} className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-slate-900 hover:underline">
           See members <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

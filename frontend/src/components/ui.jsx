@@ -55,7 +55,7 @@ const TONES = {
   rose: 'bg-rose-50 text-rose-700',
   sky: 'bg-sky-50 text-sky-700',
   violet: 'bg-violet-50 text-violet-700',
-  white: 'bg-white/25 text-white',
+  white: 'bg-white/70 text-slate-900',
 };
 
 export function Badge({ tone = 'slate', children, className }) {
@@ -190,15 +190,15 @@ export function tileColor(i = 0) {
   return TILE_COLORS[Math.abs(i) % TILE_COLORS.length];
 }
 
-// A bright tile with white text and a two-tone strip at the bottom showing `progress` (0..1).
+// A bright tile with dark text (white failed contrast on the yellow and pink tiles) and a two-tone strip at the bottom showing `progress` (0..1).
 export function Tile({ color = 0, progress, children, className, as: As = 'div', ...rest }) {
   const c = tileColor(color);
   return (
-    <As className={cx('relative flex flex-col overflow-hidden rounded-3xl text-white shadow-[0_12px_30px_-14px_rgba(49,46,129,0.55)]', c.tile, className)} {...rest}>
+    <As className={cx('relative flex flex-col overflow-hidden rounded-3xl text-slate-900 shadow-[0_12px_30px_-14px_rgba(49,46,129,0.55)]', c.tile, className)} {...rest}>
       <div className="flex-1 p-5">{children}</div>
       {progress !== undefined && (
         <div className={cx('h-3 w-full', c.track)}>
-          <div className={cx('h-full', c.bar)} style={{ width: `${Math.max(4, Math.min(100, progress * 100))}%` }} />
+          <div className={cx('sm-bar h-full', c.bar)} style={{ width: `${Math.max(4, Math.min(100, progress * 100))}%` }} />
         </div>
       )}
     </As>
@@ -225,7 +225,7 @@ export function ScoreRing({ score, size = 64, label = 'match', stroke }) {
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} stroke="#eef1f8" strokeWidth={w} fill={big ? '#f6f8fd' : 'none'} />
         <circle cx={size / 2} cy={size / 2} r={r} stroke={`url(#${id})`} strokeWidth={w} fill="none" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - value / 100)} />
+          strokeDasharray={c} strokeDashoffset={c * (1 - value / 100)} className="sm-ring" style={{ '--sm-ring-from': c }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
         <span className={cx('font-extrabold tracking-tight text-slate-900', big ? 'text-6xl' : size >= 64 ? 'text-base' : 'text-sm')}>{value}%</span>

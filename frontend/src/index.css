@@ -20,5 +20,32 @@
   .card { @apply rounded-[28px] bg-white shadow-[0_18px_50px_-24px_rgba(49,46,129,0.45)]; }
 }
 
+/* Motion shared by the landing page and the app. CSS only: no animation library.
+   sm-enter plays on load; sm-reveal plays as the element scrolls into view (browsers without
+   scroll timelines just show it). Everything stops for "reduce motion". */
+html { scroll-behavior: smooth; }
+@keyframes sm-up { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes sm-marquee { to { transform: translateX(-50%); } }
+@keyframes sm-ring { from { stroke-dashoffset: var(--sm-ring-from); } }
+@keyframes sm-bar { from { transform: scaleX(0); } }
+.sm-enter { animation: sm-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@supports (animation-timeline: view()) {
+  .sm-reveal { animation: sm-up linear both; animation-timeline: view(); animation-range: entry 5% cover 28%; }
+}
+.sm-lift { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s; }
+.sm-lift:hover { transform: translateY(-4px); box-shadow: 0 26px 60px -26px rgba(49, 46, 129, 0.55); }
+.sm-marquee { display: flex; gap: 12px; width: max-content; animation: sm-marquee 38s linear infinite; }
+.sm-marquee-box:hover .sm-marquee { animation-play-state: paused; }
+.sm-ring { animation: sm-ring 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; }
+.sm-bar { transform-origin: left; animation: sm-bar 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; }
+.sm-rail { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 4px 2px 14px; }
+.sm-rail::-webkit-scrollbar { display: none; }
+.sm-rail > * { scroll-snap-align: start; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .sm-enter, .sm-reveal, .sm-marquee, .sm-ring, .sm-bar { animation: none; }
+  .sm-lift { transition: none; }
+}
+
 .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }

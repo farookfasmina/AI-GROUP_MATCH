@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, CalendarClock, ChevronRight, ClipboardCheck, Lightbulb, MoreHorizontal, Settings2, Sparkles, Star, UsersRound, Video } from 'lucide-react';
+import { Bell, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, Lightbulb, MoreHorizontal, Settings2, Sparkles, Star, UsersRound, Video } from 'lucide-react';
 import api, { errorText } from '../api';
 import InvitationCard from '../components/InvitationCard';
 import { Avatar, AvatarStack, Badge, Button, Card, ErrorBox, IconButton, ScoreRing, Spinner, Tile, cx, tileColor, useToast } from '../components/ui';
@@ -121,7 +121,7 @@ function WeekPanel({ availability, sessions }) {
                   const c = tileColor(s.group_id + k);
                   return (
                     <Link key={s.id} to={`/groups/${s.group_id}?tab=sessions`} style={pos(from, from + Math.max(s.duration_minutes, 60) / 60)}
-                      className={cx('absolute inset-x-1 overflow-hidden rounded-2xl p-2 text-white shadow-md', c.tile)} title={`${s.title} - ${s.group_name}`}>
+                      className={cx('absolute inset-x-1 overflow-hidden rounded-2xl p-2 text-slate-900 shadow-md', c.tile)} title={`${s.title} - ${s.group_name}`}>
                       <Video className="h-3.5 w-3.5" />
                       <p className="mt-1 line-clamp-2 text-xs font-semibold leading-tight">{s.title}</p>
                     </Link>
@@ -153,7 +153,7 @@ function BoardColumn({ title, groups, empty }) {
           {groups.slice(0, 4).map((g) => (
             <li key={g.id}>
               <Link to={`/groups/${g.id}`} className="flex items-center gap-3 rounded-2xl p-1 hover:bg-white">
-                <span className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white', tileColor(g.id).tile)}>
+                <span className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-slate-900', tileColor(g.id).tile)}>
                   {subjectInitials(g.subject)}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{g.name}</span>
@@ -201,7 +201,7 @@ function FreeTimePanel({ availability, sessions }) {
             <span className="w-4 text-xs font-bold text-slate-400">{d.day[0]}</span>
             <div className="flex h-7 flex-1 items-center">
               {d.total === 0 ? <span className="text-xs text-slate-300">-</span> : (
-                <div className="flex h-full overflow-hidden rounded-full" style={{ width: `${(d.total / max) * 100}%` }}>
+                <div className="sm-bar flex h-full overflow-hidden rounded-full" style={{ width: `${(d.total / max) * 100}%` }}>
                   {d.parts.filter((p) => p.hours > 0).map((p) => (
                     <div key={p.key} className={colors[p.key]} style={{ width: `${(p.hours / d.total) * 100}%` }} title={`${p.label}: ${p.hours}h`} />
                   ))}
@@ -230,8 +230,32 @@ function StudyTip() {
     <Tile color={3} className="h-full">
       <div className="flex items-center gap-2"><Lightbulb className="h-5 w-5" /><Badge tone="white">Study tip of the day</Badge></div>
       <p className="mt-3 text-xl font-bold leading-snug">{challenge.title}</p>
-      <p className="mt-1 text-sm text-white/90">{challenge.content}</p>
+      <p className="mt-1 text-sm text-slate-800">{challenge.content}</p>
     </Tile>
+  );
+}
+
+// New matches as a swipeable row: native scroll-snap, the arrows just scroll it.
+function MatchRail({ invites, onDone }) {
+  const rail = useRef(null);
+  const move = (dir) => rail.current?.scrollBy({ left: dir * Math.max(300, rail.current.clientWidth * 0.8), behavior: 'smooth' });
+  return (
+    <section className="sm-enter space-y-3" style={{ animationDelay: '0.08s' }}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900"><Sparkles className="h-5 w-5 text-indigo-600" /> New matches for you</h2>
+        {invites.length > 1 && (
+          <div className="flex gap-2">
+            <IconButton icon={ChevronLeft} label="Scroll matches back" onClick={() => move(-1)} className="bg-white" />
+            <IconButton icon={ChevronRight} label="Scroll matches forward" onClick={() => move(1)} className="bg-white" />
+          </div>
+        )}
+      </div>
+      <div ref={rail} className="sm-rail">
+        {invites.map((g) => (
+          <div key={g.id} className="w-[min(100%,440px)] shrink-0"><InvitationCard group={g} onDone={onDone} /></div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -285,26 +309,21 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="sm-enter flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-indigo-900/70">Welcome back</p>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{user.full_name?.split(' ')[0] || 'there'}'s study space</h1>
         </div>
       </div>
 
-      {invites.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900"><Sparkles className="h-5 w-5 text-indigo-600" /> New matches for you</h2>
-          <div className="grid gap-4 xl:grid-cols-2">{invites.map((g) => <InvitationCard key={g.id} group={g} onDone={load} />)}</div>
-        </section>
-      )}
+      {invites.length > 0 && <MatchRail invites={invites} onDone={load} />}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] [&>*]:min-w-0">
+      <div className="sm-enter grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] [&>*]:min-w-0" style={{ animationDelay: '0.16s' }}>
         <MatchPanel groups={active.concat(waiting)} nextSession={upcoming[0]} onFind={findNow} finding={finding} />
         <WeekPanel availability={data.availability} sessions={thisWeek} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0">
+      <div className="sm-reveal grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0">
         <Card className="self-start overflow-hidden p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">My groups</h2>
@@ -322,13 +341,13 @@ export default function Dashboard() {
           {active.length > 0 ? (
             <div className="mt-5 grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {active.slice(0, 6).map((g) => (
-                <Tile key={g.id} as={Link} to={`/groups/${g.id}`} color={g.id} progress={(g.match_score ?? 70) / 100} className="transition hover:-translate-y-0.5">
+                <Tile key={g.id} as={Link} to={`/groups/${g.id}`} color={g.id} progress={(g.match_score ?? 70) / 100} className="sm-lift">
                   <div className="flex items-center justify-between">
                     <AvatarStack people={g.people || []} ring={tileColor(g.id).ring} />
                     {g.kind === 'buddy' ? <Badge tone="white">Buddy</Badge> : <Badge tone="white">{g.member_count} members</Badge>}
                   </div>
                   <p className="mt-3 text-lg font-bold leading-tight">{g.subject}</p>
-                  <p className="mt-1 line-clamp-1 text-sm text-white/90">{g.meeting_slot || g.name}</p>
+                  <p className="mt-1 line-clamp-1 text-sm text-slate-800">{g.meeting_slot || g.name}</p>
                 </Tile>
               ))}
             </div>

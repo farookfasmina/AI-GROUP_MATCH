@@ -300,7 +300,7 @@ export default function GroupDetail() {
           {g.match_score != null && (
             <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-3xl bg-white/25">
               <span className="text-2xl font-extrabold leading-none">{Math.round(g.match_score)}%</span>
-              <span className="mt-1 text-[11px] font-semibold text-white/90">match</span>
+              <span className="mt-1 text-[11px] font-semibold text-slate-800">match</span>
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -310,7 +310,7 @@ export default function GroupDetail() {
               <Badge tone="white">{KIND[g.kind] || 'Group'}</Badge>
             </div>
             <h1 className="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl">{g.name}</h1>
-            <p className="text-white/90">{g.meeting_slot || g.subject}{g.avg_rating ? ` · rated ${g.avg_rating} / 5` : ''}</p>
+            <p className="text-slate-800">{g.meeting_slot || g.subject}{g.avg_rating ? ` · rated ${g.avg_rating} / 5` : ''}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {g.my_status === 'pending' && g.status === 'proposed' && (

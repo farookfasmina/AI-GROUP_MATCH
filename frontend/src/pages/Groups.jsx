@@ -20,7 +20,7 @@ function GroupTile({ g }) {
         </div>
       </div>
       <h3 className="mt-3 truncate text-lg font-bold leading-tight">{g.subject}</h3>
-      <p className="mt-1 truncate text-sm text-white/90">{g.meeting_slot || g.name}</p>
+      <p className="mt-1 truncate text-sm text-slate-800">{g.meeting_slot || g.name}</p>
     </Tile>
   );
 }
@@ -56,7 +56,7 @@ function Browse({ onJoined }) {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((g) => (
             <Card key={g.id} className="flex flex-col p-5">
-              <span className={`self-start rounded-full px-3 py-1 text-xs font-bold text-white ${tileColor(g.id).tile}`}>{g.subject}</span>
+              <span className={`self-start rounded-full px-3 py-1 text-xs font-bold text-slate-900 ${tileColor(g.id).tile}`}>{g.subject}</span>
               <h3 className="mt-2 font-bold text-slate-900">{g.name}</h3>
               <p className="mt-1 line-clamp-2 flex-1 text-sm text-slate-500">{g.description || 'No description'}</p>
               <div className="mt-4 flex items-center justify-between">
