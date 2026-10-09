@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import bcrypt
-from jose import JWTError, jwt
+from jose import jwt
 
 from core.config import settings
 
@@ -26,20 +26,3 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
-
-def create_reset_token(email: str) -> str:
-    """Creates a short-lived (15 min) JWT for password reset."""
-    expire = datetime.utcnow() + timedelta(minutes=15)
-    return jwt.encode({"exp": expire, "sub": email, "type": "reset"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
-
-def verify_reset_token(token: str) -> Optional[str]:
-    """Returns the email inside a valid reset token, otherwise None."""
-    try:
-        decoded = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        if decoded.get("type") != "reset":
-            return None
-        return decoded.get("sub")
-    except JWTError:
-        return None

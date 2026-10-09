@@ -16,6 +16,7 @@ import Profile from './pages/Profile';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import Sessions from './pages/Sessions';
+import VerifyEmail from './pages/VerifyEmail';
 import Survey from './pages/Survey';
 import AdminEvaluation from './pages/admin/Evaluation';
 import AdminGroups from './pages/admin/Groups';
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
 
             <Route element={<Protected needProfile><Layout /></Protected>}>

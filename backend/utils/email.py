@@ -1,58 +1,51 @@
 import smtplib
-from email.mime.text import MIMEText
+import ssl
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from core.config import settings
-from datetime import datetime
 
-def send_reset_email(email_to: str, token: str):
-    """
-    Sends a formatted HTML password recovery email via SMTP.
-    """
-    subject = f"{settings.PROJECT_NAME} - Password Recovery"
-    link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
-    
-    html_content = f"""
-    <html>
-        <body style="font-family: sans-serif; color: #1e293b; line-height: 1.5;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #f1f5f9; border-radius: 24px;">
-                <h2 style="color: #4f46e5; margin-bottom: 24px;">Security Hub: Password Recovery</h2>
-                <p>Hello,</p>
-                <p>You requested a password reset for your account on <strong>{settings.PROJECT_NAME}</strong>.</p>
-                <p>Click the button below to initialize the recovery sequence. This secure link will expire in <strong>15 minutes</strong>.</p>
-                <div style="margin: 32px 0;">
-                    <a href="{link}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">Reset Password</a>
-                </div>
-                <p style="font-size: 14px; color: #64748b;">If you did not request this reset, please ignore this email or contact support if you have concerns.</p>
-                <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 32px 0;" />
-                <p style="font-size: 12px; color: #94a3b8;">Sent via StudyMatch Secure SMTP Gateway</p>
-            </div>
-        </body>
-    </html>
-    """
-    
-    message = MIMEMultipart()
-    message["From"] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL}>"
-    message["To"] = email_to
-    message["Subject"] = subject
-    message.attach(MIMEText(html_content, "html"))
+PURPOSE_TEXT = {
+    "verify": ("Confirm your email", "Use this code to confirm your email address and finish creating your account."),
+    "reset": ("Reset your password", "Use this code to choose a new password. If you did not ask for this, you can ignore this email."),
+}
 
-    # DEMO INSURANCE: Always log the link to the terminal console
-    print(f"\n[SECURITY HUB] Password recovery link generated for {email_to}:")
-    print(f"LINK: {link}\n")
 
-    if not (settings.SMTP_USER and settings.SMTP_PASSWORD):
-        return False  # no mail server configured - the link above is in the server log
-
-    try:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            if settings.SMTP_USER and settings.SMTP_PASSWORD:
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(message)
-        return True
-    except Exception as e:
-        # Create a professional debug log for project evaluation
-        with open("email_debug.log", "a") as f:
-            f.write(f"[{datetime.utcnow()}] FAILED to send to {email_to}: {str(e)}\n")
-            f.write(f"RECOVERY LINK: {link}\n\n")
-        print(f"CRITICAL EMAIL FAILURE: {e}")
+def send_email(to: str, subject: str, html: str, text: str) -> bool:
+    """Send one email over SMTP (STARTTLS on 587, SSL on 465). Returns False when email is
+    not set up or sending failed - callers never fail because of email."""
+    if not settings.email_enabled:
         return False
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL or settings.SMTP_USER}>"
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    try:
+        context = ssl.create_default_context()
+        if settings.SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15, context=context) as server:
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+                server.starttls(context=context)
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+        return True
+    except Exception as exc:  # never show SMTP details to the user
+        print(f"Email to {to} failed: {exc}")
+        return False
+
+
+def send_code_email(to: str, code: str, purpose: str) -> bool:
+    title, line = PURPOSE_TEXT[purpose]
+    text = f"{title}\n\n{line}\n\nYour code: {code}\n\nIt expires in 10 minutes. Never share this code with anyone."
+    html = f"""<div style="font-family:Arial,sans-serif;color:#111;max-width:480px;margin:0 auto;padding:24px">
+<p style="font-size:18px;font-weight:bold;margin:0 0 12px">{title}</p>
+<p style="margin:0 0 20px;color:#333">{line}</p>
+<p style="font-size:32px;letter-spacing:8px;font-weight:bold;margin:0 0 20px">{code}</p>
+<p style="margin:0;color:#555;font-size:13px">It expires in 10 minutes. Never share this code with anyone.</p>
+<p style="margin:24px 0 0;color:#555;font-size:12px">StudyMatch AI</p></div>"""
+    return send_email(to, f"{code} is your StudyMatch code", html, text)

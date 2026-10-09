@@ -54,13 +54,21 @@ export function AuthProvider({ children }) {
     return me.data;
   };
 
+  // Used after the email code is confirmed: the backend answers with a token directly.
+  const loginWithToken = async (token) => {
+    try { localStorage.setItem('study_token', token); } catch { /* ignore */ }
+    const me = await api.get('/users/me');
+    setCurrentUser(me.data);
+    return me.data;
+  };
+
   const logout = () => {
     try { localStorage.removeItem('study_token'); } catch { /* ignore */ }
     setCurrentUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, user: currentUser, login, logout, loading, refresh }}>
+    <AuthContext.Provider value={{ currentUser, user: currentUser, login, loginWithToken, logout, loading, refresh }}>
       {children}
     </AuthContext.Provider>
   );

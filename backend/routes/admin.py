@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.deps import get_current_user
 from models.all_models import (
-    GroupFeedback, GroupMessage, MatchFeedback, MatchRun, Membership, ModelWeights, Notification, Preference,
+    EmailCode, GroupFeedback, GroupMessage, LoginAttempt, MatchFeedback, MatchRun, Membership, ModelWeights, Notification, Preference,
     StudyGroup, StudyInsight, StudySession, Subject, SurveyResponse, User,
 )
 from schemas.study_group import MatchRunIn, SubjectIn
@@ -123,6 +123,8 @@ def delete_user_everywhere(db: Session, user: User, new_owner_id: int):
                        (GroupFeedback, GroupFeedback.user_id), (SurveyResponse, SurveyResponse.user_id),
                        (Notification, Notification.user_id), (Membership, Membership.user_id)):
         db.query(model).filter(col == user.id).delete(synchronize_session=False)
+    db.query(EmailCode).filter(EmailCode.user_id == user.id).delete(synchronize_session=False)
+    db.query(LoginAttempt).filter(LoginAttempt.email == user.email).delete(synchronize_session=False)
     db.query(MatchFeedback).filter((MatchFeedback.user_id == user.id) | (MatchFeedback.matched_user_id == user.id)) \
         .delete(synchronize_session=False)
     db.query(StudyGroup).filter(StudyGroup.creator_id == user.id).update({"creator_id": new_owner_id}, synchronize_session=False)

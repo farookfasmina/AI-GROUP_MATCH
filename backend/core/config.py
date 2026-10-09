@@ -39,15 +39,20 @@ class Settings(BaseSettings):
     # Fill an empty database with demo students (flagged so they can be removed in one click).
     SEED_DEMO: bool = True
 
-    # SMTP (Mailtrap sandbox by default). When empty, reset links are printed to the server log.
-    SMTP_HOST: str = "sandbox.smtp.mailtrap.io"
-    SMTP_PORT: int = 2525
+    # Email (SMTP). Gmail: SMTP_USER = the Gmail address, SMTP_PASSWORD = a Google "app password".
+    # When SMTP_USER/SMTP_PASSWORD are empty, no email is sent and new accounts need no email code.
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     EMAILS_FROM_NAME: str = "StudyMatch AI"
-    EMAILS_FROM_EMAIL: str = "noreply@studymatch.edu"
+    EMAILS_FROM_EMAIL: str = ""
 
     model_config = SettingsConfigDict(env_file=str(BACKEND_DIR / ".env"), case_sensitive=True, extra="ignore")
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.SMTP_USER and self.SMTP_PASSWORD)
 
     @property
     def database_url(self) -> str:
