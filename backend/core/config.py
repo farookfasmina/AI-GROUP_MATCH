@@ -48,7 +48,8 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: str = "StudyMatch AI"
     EMAILS_FROM_EMAIL: str = ""
 
-    model_config = SettingsConfigDict(env_file=str(BACKEND_DIR / ".env"), case_sensitive=True, extra="ignore")
+    # env_ignore_empty: a blank line like "DATABASE_URL=" in .env keeps the default (SQLite) instead of breaking start-up.
+    model_config = SettingsConfigDict(env_file=str(BACKEND_DIR / ".env"), case_sensitive=True, extra="ignore", env_ignore_empty=True)
 
     @property
     def email_enabled(self) -> bool:
