@@ -4,16 +4,20 @@
 
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
-  body { @apply bg-slate-50 text-slate-800 antialiased; }
+  /* Sky-blue to periwinkle gradient behind every page, as in the design reference */
+  body {
+    @apply min-h-screen text-slate-800 antialiased;
+    background: linear-gradient(135deg, #bcdcff 0%, #a9bdfd 45%, #8c8cf6 100%) fixed;
+  }
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900
-      placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+    @apply w-full rounded-2xl border border-transparent bg-slate-100/80 px-4 py-3 text-sm text-slate-900
+      placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10;
   }
-  .label { @apply mb-1.5 block text-sm font-medium text-slate-700; }
-  .card { @apply rounded-xl border border-slate-200 bg-white shadow-card; }
+  .label { @apply mb-1.5 block text-sm font-semibold text-slate-700; }
+  .card { @apply rounded-[28px] bg-white shadow-[0_18px_50px_-24px_rgba(49,46,129,0.45)]; }
 }
 
 .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }

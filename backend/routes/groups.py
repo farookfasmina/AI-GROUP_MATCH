@@ -31,6 +31,7 @@ def group_summary(g: StudyGroup, user: User | None) -> dict:
         "creator_id": g.creator_id, "created_at": g.created_at, "kind": g.kind or "manual",
         "status": g.status or "active", "match_score": g.match_score, "meeting_slot": g.meeting_slot,
         "reasons": g.reasons or [], "member_count": len(active_members(g)),
+        "people": [{"id": m.user_id, "name": m.user.full_name} for m in active_members(g)],
         "user_role": mine.role if mine and mine.status != "declined" else "",
         "my_status": mine.status if mine else None,
         "my_feedback": bool(user and any(f.user_id == user.id for f in g.feedback)),

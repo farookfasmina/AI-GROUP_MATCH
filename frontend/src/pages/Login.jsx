@@ -7,18 +7,18 @@ import { homeFor, useAuth } from '../context/AuthContext';
 
 export function AuthShell({ title, subtitle, children, footer }) {
   return (
-    <div className="flex min-h-screen bg-white">
-      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-slate-900 via-brand-900 to-brand-700 p-12 text-white lg:flex">
+    <div className="flex min-h-screen gap-4 p-3 sm:p-4">
+      <div className="hidden w-1/2 flex-col justify-between rounded-[28px] bg-gradient-to-br from-[#4f7cff] via-[#5b4ff0] to-[#a774f5] p-12 text-white lg:flex">
         <Logo light />
         <div>
           <h2 className="text-3xl font-bold leading-tight">Smarter study groups,<br />built around how you learn.</h2>
-          <p className="mt-4 max-w-md text-brand-100">
+          <p className="mt-4 max-w-md text-indigo-100">
             Subjects, skill level, free time and study style - matched by AI and improved by every group's feedback.
           </p>
         </div>
-        <p className="text-sm text-brand-200">Horizon Campus · Faculty of Information Technology</p>
+        <p className="text-sm text-indigo-100">Horizon Campus · Faculty of Information Technology</p>
       </div>
-      <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-8">
+      <div className="flex flex-1 items-center justify-center rounded-[28px] bg-white px-4 py-12 shadow-[0_18px_50px_-24px_rgba(49,46,129,0.45)] sm:px-8">
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden"><Logo /></div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
@@ -78,16 +78,16 @@ export default function Login() {
         </div>
         <Button type="submit" loading={busy} className="w-full" size="lg">Sign in</Button>
       </form>
-      <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+      <div className="mt-6 rounded-3xl bg-slate-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Demo accounts</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={() => fill('student@demo.lk', 'Demo@1234')}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm hover:border-brand-300">
+            className="rounded-2xl bg-white px-4 py-2.5 shadow-sm text-left text-sm hover:ring-2 hover:ring-indigo-200">
             <span className="block font-semibold text-slate-800">Student</span>
             <span className="text-xs text-slate-500">student@demo.lk</span>
           </button>
           <button type="button" onClick={() => fill('admin@studymatch.lk', 'Admin@1234')}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm hover:border-brand-300">
+            className="rounded-2xl bg-white px-4 py-2.5 shadow-sm text-left text-sm hover:ring-2 hover:ring-indigo-200">
             <span className="block font-semibold text-slate-800">Admin</span>
             <span className="text-xs text-slate-500">admin@studymatch.lk</span>
           </button>

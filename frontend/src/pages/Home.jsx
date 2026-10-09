@@ -24,24 +24,24 @@ const STEPS = [
 export default function Landing() {
   const { user } = useAuth();
   return (
-    <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/90 backdrop-blur">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-20 bg-white/60 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Logo />
           <nav className="flex items-center gap-2">
             {user ? (
-              <Link to={homeFor(user)} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Open my dashboard</Link>
+              <Link to={homeFor(user)} className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Open my dashboard</Link>
             ) : (
               <>
-                <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Sign in</Link>
-                <Link to="/register" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Get started</Link>
+                <Link to="/login" className="rounded-full px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white/70">Sign in</Link>
+                <Link to="/register" className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Get started</Link>
               </>
             )}
           </nav>
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-white to-white">
+      <section className="relative overflow-hidden ">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand-700 shadow-sm ring-1 ring-brand-100">
@@ -55,10 +55,10 @@ export default function Landing() {
               skill level, free time and social style - then learns from every group's feedback.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/register" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white shadow-sm hover:bg-brand-700">
+              <Link to="/register" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-5 py-3 font-semibold text-white shadow-sm hover:brightness-110">
                 Create my profile <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link to="/login" className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">
+              <Link to="/login" className="rounded-full bg-white shadow-sm px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">
                 Try the demo
               </Link>
             </div>
@@ -86,7 +86,7 @@ export default function Landing() {
                 <li className="flex gap-2"><span className="text-emerald-600">✓</span> Common language: English</li>
               </ul>
               <div className="mt-6 grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-brand-600 py-2 text-center text-sm font-semibold text-white">Accept</div>
+                <div className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] py-2 text-center text-sm font-semibold text-white">Accept</div>
                 <div className="rounded-lg border border-slate-300 py-2 text-center text-sm font-semibold text-slate-600">Decline</div>
               </div>
             </div>
@@ -108,13 +108,13 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="bg-slate-900 py-16 text-white">
+      <section className="mx-4 rounded-[28px] bg-slate-900 py-16 text-white sm:mx-6">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <h2 className="text-3xl font-bold tracking-tight">How it works</h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(([t, d], i) => (
               <div key={t}>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 font-bold">{i + 1}</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#5b4ff0] font-bold">{i + 1}</div>
                 <h3 className="mt-4 font-semibold">{t}</h3>
                 <p className="mt-1.5 text-sm text-slate-400">{d}</p>
               </div>
@@ -133,11 +133,11 @@ export default function Landing() {
               anything is used, and you can withdraw at any time from your preferences page.
             </p>
           </div>
-          <Link to="/register" className="rounded-lg bg-brand-600 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-700">Join now</Link>
+          <Link to="/register" className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-5 py-3 text-sm font-semibold text-white hover:brightness-110">Join now</Link>
         </div>
       </section>
 
-      <footer className="border-t border-slate-100 py-8 text-center text-sm text-slate-500">
+      <footer className="py-8 text-center text-sm font-medium text-slate-700">
         StudyMatch AI · Final year project, Faculty of IT, Horizon Campus
       </footer>
     </div>
