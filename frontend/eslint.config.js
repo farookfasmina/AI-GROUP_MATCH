@@ -23,7 +23,7 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', ignoreRestSiblings: true }],
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]', ignoreRestSiblings: true }],
       // Shared UI modules export helpers next to components; this only affects hot-reload speed.
       'react-refresh/only-export-components': 'off',
       // Data-loading effects set state when the request returns; that is the intended pattern here.

@@ -3,24 +3,25 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, UsersRound } from 'lucide-react';
 import api, { errorText } from '../api';
 import InvitationCard from '../components/InvitationCard';
-import { Badge, Button, Card, Empty, ErrorBox, Modal, PageHeader, ScoreRing, Spinner, StatusBadge, Tabs, useToast } from '../components/ui';
+import { AvatarStack, Badge, Button, Card, Empty, ErrorBox, Modal, PageHeader, Spinner, Tabs, Tile, tileColor, useToast } from '../components/ui';
 import { useApi } from '../lib/hooks';
 
 const KIND = { manual: 'Open group', ai_group: 'AI study group', buddy: 'Study buddies' };
 
 function GroupTile({ g }) {
   return (
-    <Link to={`/groups/${g.id}`} className="card block p-5 transition hover:border-brand-300 hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap gap-2"><StatusBadge status={g.status} /><Badge>{KIND[g.kind] || 'Group'}</Badge></div>
-          <h3 className="mt-2 truncate font-bold text-slate-900">{g.name}</h3>
-          <p className="truncate text-sm text-slate-500">{g.subject}</p>
+    <Tile as={Link} to={`/groups/${g.id}`} color={g.id} progress={g.match_score != null ? g.match_score / 100 : undefined}
+      className={g.status === 'closed' ? 'opacity-60 grayscale' : 'transition hover:-translate-y-0.5'}>
+      <div className="flex items-center justify-between gap-2">
+        <AvatarStack people={g.people || []} ring={tileColor(g.id).ring} />
+        <div className="flex gap-1.5">
+          {g.match_score != null && <Badge tone="white">{Math.round(g.match_score)}%</Badge>}
+          <Badge tone="white">{g.status === 'active' ? KIND[g.kind] || 'Group' : g.status === 'closed' ? 'Closed' : 'Waiting'}</Badge>
         </div>
-        {g.match_score != null && <ScoreRing score={g.match_score / 100} size={52} />}
       </div>
-      <p className="mt-3 text-sm text-slate-600">{g.member_count} members{g.meeting_slot ? ` · ${g.meeting_slot}` : ''}</p>
-    </Link>
+      <h3 className="mt-3 truncate text-lg font-bold leading-tight">{g.subject}</h3>
+      <p className="mt-1 truncate text-sm text-white/90">{g.meeting_slot || g.name}</p>
+    </Tile>
   );
 }
 
@@ -55,7 +56,7 @@ function Browse({ onJoined }) {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((g) => (
             <Card key={g.id} className="flex flex-col p-5">
-              <Badge tone="brand" className="self-start">{g.subject}</Badge>
+              <span className={`self-start rounded-full px-3 py-1 text-xs font-bold text-white ${tileColor(g.id).tile}`}>{g.subject}</span>
               <h3 className="mt-2 font-bold text-slate-900">{g.name}</h3>
               <p className="mt-1 line-clamp-2 flex-1 text-sm text-slate-500">{g.description || 'No description'}</p>
               <div className="mt-4 flex items-center justify-between">

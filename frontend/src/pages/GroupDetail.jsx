@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CalendarPlus, CheckCircle2, Clock, FileText, Loader2, LogOut, Mail, MapPin, Paperclip, Send, Sparkles, Trash2 } from 'lucide-react';
 import api, { errorText } from '../api';
-import { Avatar, Badge, Button, Card, CardHeader, Empty, ErrorBox, Modal, ScoreRing, Spinner, StatusBadge, Tabs, cx, useToast } from '../components/ui';
+import { Avatar, AvatarStack, Badge, Button, Card, CardHeader, Empty, ErrorBox, Modal, Spinner, StatusBadge, Tabs, Tile, cx, tileColor, useToast } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useApi, useInterval } from '../lib/hooks';
 import { LEVEL_TONE, dateTime, optionLabel, timeAgo, toDate } from '../lib/format';
@@ -295,28 +295,37 @@ export default function GroupDetail() {
   return (
     <div className="space-y-6">
       <Link to={back} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Back to groups</Link>
-      <Card className="p-5 sm:p-6">
+      <Tile color={g.id} progress={g.match_score != null ? g.match_score / 100 : undefined}>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          {g.match_score != null && <ScoreRing score={g.match_score / 100} size={80} />}
+          {g.match_score != null && (
+            <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-3xl bg-white/25">
+              <span className="text-2xl font-extrabold leading-none">{Math.round(g.match_score)}%</span>
+              <span className="mt-1 text-[11px] font-semibold text-white/90">match</span>
+            </div>
+          )}
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap gap-2"><StatusBadge status={g.status} /><Badge tone="brand">{KIND[g.kind] || 'Group'}</Badge></div>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{g.name}</h1>
-            <p className="text-slate-500">{g.subject}{g.avg_rating ? ` · rated ${g.avg_rating} / 5` : ''}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <AvatarStack people={g.members.filter((m) => m.status !== 'declined').map((m) => ({ id: m.id, name: m.full_name }))} max={5} ring={tileColor(g.id).ring} />
+              <Badge tone="white">{g.status === 'proposed' ? 'Invitation' : g.status === 'closed' ? 'Closed' : 'Active'}</Badge>
+              <Badge tone="white">{KIND[g.kind] || 'Group'}</Badge>
+            </div>
+            <h1 className="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl">{g.name}</h1>
+            <p className="text-white/90">{g.meeting_slot || g.subject}{g.avg_rating ? ` · rated ${g.avg_rating} / 5` : ''}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {g.my_status === 'pending' && g.status === 'proposed' && (
               <>
-                <Button onClick={() => respond(true)} loading={busy === 'yes'} disabled={!!busy}>Accept</Button>
-                <Button variant="secondary" onClick={() => respond(false)} loading={busy === 'no'} disabled={!!busy}>Decline</Button>
+                <button onClick={() => respond(true)} disabled={!!busy} className="rounded-full px-5 py-2.5 text-sm font-bold transition disabled:opacity-60 bg-white text-slate-900 shadow">{busy === 'yes' ? 'Joining...' : 'Accept'}</button>
+                <button onClick={() => respond(false)} disabled={!!busy} className="rounded-full px-5 py-2.5 text-sm font-bold transition disabled:opacity-60 bg-white/25 text-white hover:bg-white/35">{busy === 'no' ? 'Declining...' : 'Decline'}</button>
               </>
             )}
             {canPost && g.status === 'active' && (
-              <Button variant="secondary" onClick={() => setRate(true)}>{g.feedback ? 'Update my rating' : 'Rate this group'}</Button>
+              <button onClick={() => setRate(true)} className="rounded-full px-5 py-2.5 text-sm font-bold transition disabled:opacity-60 bg-white text-slate-900 shadow">{g.feedback ? 'Update my rating' : 'Rate this group'}</button>
             )}
-            {canPost && <Button variant="ghost" icon={LogOut} onClick={() => setLeaving(true)}>Leave</Button>}
+            {canPost && <button onClick={() => setLeaving(true)} className="rounded-full px-5 py-2.5 text-sm font-bold transition disabled:opacity-60 inline-flex items-center gap-1.5 bg-white/25 text-white hover:bg-white/35"><LogOut className="h-4 w-4" /> Leave</button>}
           </div>
         </div>
-      </Card>
+      </Tile>
       <Tabs tabs={[{ value: 'overview', label: 'Overview' }, { value: 'chat', label: 'Chat' }, { value: 'sessions', label: `Sessions (${g.sessions.length})` }]}
         value={tab} onChange={(v) => setParams(v === 'overview' ? {} : { tab: v })} />
       {tab === 'overview' && <Overview g={g} />}

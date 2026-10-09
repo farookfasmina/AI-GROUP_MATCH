@@ -141,7 +141,7 @@ export default function Matches() {
       ) : data.length === 0 ? (
         <Card><Empty icon={UserPlus} title="No matches yet">Not enough students have completed their profile. Add more subjects or free time to widen the search.</Empty></Card>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">{data.map((m) => <MatchCard key={m.target_user_id} m={m} onChange={reload} />)}</div>
+        <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">{data.map((m) => <MatchCard key={m.target_user_id} m={m} onChange={reload} />)}</div>
       )}
     </div>
   );
