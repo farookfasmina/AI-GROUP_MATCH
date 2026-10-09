@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from core.database import get_db
 from core.deps import get_current_user
@@ -30,16 +30,23 @@ def get_my_matches(db: Session = Depends(get_db), current_user: User = Depends(g
         raise HTTPException(status_code=400, detail="Please agree to the consent statement first.")
     if not current_user.preference or not current_user.preference.subjects_of_interest:
         raise HTTPException(status_code=400, detail="Add your subjects in Preferences to get matches.")
-    others = db.query(User).filter(User.id != current_user.id).all()
+    # One query for everyone's preferences and free time (not one per student) keeps this fast.
+    others = (db.query(User).filter(User.id != current_user.id)
+              .options(selectinload(User.preference), selectinload(User.availabilities)).all())
     matches = get_top_user_matches(current_user, others, top_n=5)
+    requested = {n.user_id for n in db.query(Notification).filter(
+        Notification.type == "match_request", Notification.payload_id == current_user.id, Notification.is_read.is_(False))}
+    rated = {f.matched_user_id for f in db.query(MatchFeedback).filter(MatchFeedback.user_id == current_user.id)}
+    partners = {}
+    for m in db.query(Membership).join(StudyGroup).filter(Membership.user_id == current_user.id, StudyGroup.kind == "buddy",
+                                                          StudyGroup.status != "closed"):
+        for other in m.group.memberships:
+            if other.user_id != current_user.id and other.status != "declined":
+                partners[other.user_id] = m.group_id
     for m in matches:
-        g = buddy_group_between(db, current_user.id, m["target_user_id"])
-        m["partner_group_id"] = g.id if g else None
-        m["requested"] = db.query(Notification).filter(
-            Notification.user_id == m["target_user_id"], Notification.type == "match_request",
-            Notification.payload_id == current_user.id, Notification.is_read.is_(False)).first() is not None
-        m["rated"] = db.query(MatchFeedback).filter(MatchFeedback.user_id == current_user.id,
-                                                    MatchFeedback.matched_user_id == m["target_user_id"]).first() is not None
+        m["partner_group_id"] = partners.get(m["target_user_id"])
+        m["requested"] = m["target_user_id"] in requested
+        m["rated"] = m["target_user_id"] in rated
     return matches
 
 
