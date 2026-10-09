@@ -1,144 +1,156 @@
-import { Link } from "react-router-dom";
-import {
-  ArrowRight, BellRing, Brain, CalendarClock, GraduationCap, HeartHandshake, MessagesSquare, ShieldCheck, Sparkles,
-} from "lucide-react";
-import { Logo } from "../components/Layout";
-import { homeFor, useAuth } from "../context/AuthContext";
+import { Link } from 'react-router-dom';
+import { ArrowRight, Check, UsersRound } from 'lucide-react';
+import { homeFor, useAuth } from '../context/AuthContext';
 
-const FEATURES = [
-  { icon: GraduationCap, title: "Subject interests & level", text: "Choose your subjects and rate yourself. Groups mix strong and developing students so everyone learns." },
-  { icon: CalendarClock, title: "Real availability", text: "Mark the days and times you are free. A group is only formed when everyone shares a slot." },
-  { icon: HeartHandshake, title: "Social preferences", text: "Communication style, team role, pace and language are matched, not ignored." },
-  { icon: Brain, title: "AI that learns", text: "Every rating you give retrains the matching model, so the next matches are better." },
-  { icon: BellRing, title: "Instant notifications", text: "You are told the moment you are matched, with the reasons why." },
-  { icon: MessagesSquare, title: "Built-in collaboration", text: "Group chat, session planning and attendance in one place." },
-];
+// Minimal landing page: calm off-white ground, one indigo accent, an italic serif for emphasis.
+const SERIF = { fontFamily: "'Instrument Serif', serif" };
 
 const STEPS = [
-  ["Create your profile", "Subjects, level, study type, free times and study style - about 3 minutes."],
-  ["Get matched by AI", "K-Nearest Neighbours finds similar students, then 7 factors balance each group."],
-  ["Accept and study", "Accept the invitation, chat, schedule sessions and track attendance."],
-  ["Rate your group", "Your feedback teaches the model what makes a group work."],
+  ['Tell us how you study', 'Subjects and your level in each, group or buddy, the hours you are free, and how you like to work.'],
+  ['Get matched', 'K-Nearest Neighbours finds similar students; the group builder mixes levels and makes sure everyone shares a free hour.'],
+  ['Study, then rate it', 'Chat, share notes, plan sessions. Your rating teaches the model what makes a group work.'],
+];
+
+const FACTORS = [
+  ['Shared free time', 'Groups only form when everyone can meet.', 'bg-[#F5B83D]'],
+  ['Competency balance', 'Stronger and weaker students learn together.', 'bg-[#E05BC5]'],
+  ['Shared subjects', 'From the course catalogue or your own.', 'bg-[#9B6BF2]'],
+  ['Collaboration style', 'Two driven leaders rarely work out.', 'bg-[#5B7CF7]'],
+  ['Learning style', 'Visual, auditory, reading or hands-on.', 'bg-[#F5B83D]'],
+  ['Communication', 'Chat, voice, video or in person.', 'bg-[#E05BC5]'],
+  ['Study type', 'A group of 3-6, or one study buddy.', 'bg-[#9B6BF2]'],
 ];
 
 export default function Landing() {
   const { user } = useAuth();
+  const start = user ? homeFor(user) : '/register';
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-20 bg-white/60 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Logo />
-          <nav className="flex items-center gap-2">
-            {user ? (
-              <Link to={homeFor(user)} className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Open my dashboard</Link>
-            ) : (
-              <>
-                <Link to="/login" className="rounded-full px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-white/70">Sign in</Link>
-                <Link to="/register" className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-4 py-2 text-sm font-semibold text-white hover:brightness-110">Get started</Link>
-              </>
-            )}
-          </nav>
+    <div className="min-h-screen bg-[#F6F7FB] text-[#12131A]" style={{ fontFamily: 'Manrope, system-ui, sans-serif' }}>
+      <header className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-4 px-6 py-7">
+        <Link to="/" className="flex items-center gap-2.5 text-lg font-extrabold tracking-tight">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#4F46E5] text-white"><UsersRound className="h-[18px] w-[18px]" /></span>
+          StudyMatch
+        </Link>
+        <nav aria-label="Main" className="hidden items-center gap-7 text-[15px] font-semibold md:flex">
+          <a href="#how" className="hover:text-[#4F46E5]">How it works</a>
+          <a href="#match" className="hover:text-[#4F46E5]">What we match</a>
+          <a href="#privacy" className="hover:text-[#4F46E5]">Privacy</a>
+        </nav>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <Link to={homeFor(user)} className="rounded-full bg-[#12131A] px-5 py-3 text-[15px] font-bold text-white hover:bg-black">Open my dashboard</Link>
+          ) : (
+            <>
+              <Link to="/login" className="px-2 py-3 text-[15px] font-semibold hover:text-[#4F46E5]">Sign in</Link>
+              <Link to="/register" className="rounded-full bg-[#12131A] px-5 py-3 text-[15px] font-bold text-white hover:bg-black">Get started</Link>
+            </>
+          )}
         </div>
       </header>
 
-      <section className="relative overflow-hidden ">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand-700 shadow-sm ring-1 ring-brand-100">
-              <Sparkles className="h-3.5 w-3.5" /> AI-powered adaptive matching
-            </span>
-            <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-              Find the study group that <span className="text-brand-600">actually works</span> for you.
-            </h1>
-            <p className="mt-5 max-w-xl text-lg text-slate-600">
-              Random groups and grade-only grouping ignore how people study. StudyMatch AI matches you on subjects,
-              skill level, free time and social style - then learns from every group's feedback.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/register" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-5 py-3 font-semibold text-white shadow-sm hover:brightness-110">
-                Create my profile <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link to="/login" className="rounded-full bg-white shadow-sm px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">
-                Try the demo
-              </Link>
-            </div>
-            <p className="mt-4 text-sm text-slate-500">Try it: demo student <b>student@demo.lk</b> · admin <b>admin@studymatch.lk</b></p>
+      <section className="mx-auto flex max-w-[1120px] flex-wrap items-center gap-16 px-6 pb-24 pt-12 sm:pt-16">
+        <div className="min-w-0 flex-[999_1_480px]">
+          <p className="inline-flex items-center gap-2 rounded-full border border-[#E4E6EE] bg-white px-3.5 py-1.5 text-[13px] font-bold text-[#4A4F5E]">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#4F46E5]" /> Final-year project · Horizon Campus
+          </p>
+          <h1 className="mt-7 text-[clamp(44px,6vw,76px)] font-extrabold leading-[1.02] tracking-[-0.045em]">
+            Study with people<br />who <span style={SERIF} className="font-normal italic tracking-tight text-[#4F46E5]">actually fit.</span>
+          </h1>
+          <p className="mt-7 max-w-[520px] text-lg leading-relaxed text-[#4A4F5E]">
+            StudyMatch forms study groups and study buddies from your subjects, level, free time and study style - then learns from every group's ratings.
+          </p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link to={start} className="inline-flex items-center gap-2.5 rounded-full bg-[#4F46E5] px-7 py-4 font-bold text-white hover:bg-[#4338CA]">
+              Create your profile <ArrowRight className="h-[18px] w-[18px]" />
+            </Link>
+            <Link to="/login" className="rounded-full border border-[#E4E6EE] bg-white px-7 py-4 font-bold hover:border-[#C9CCE0]">Try the demo</Link>
           </div>
+          <p className="mt-4 text-[13px] text-[#5B6070]">Takes about 3 minutes. Demo student: student@demo.lk / Demo@1234</p>
+        </div>
 
-          <div className="relative">
-            <div className="card mx-auto max-w-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">New match</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">Database Systems - Study Group 3</p>
+        <div className="min-w-0 flex-[1_1_360px]">
+          <div className="flex flex-col gap-[18px] rounded-[28px] border border-[#E4E6EE] bg-white p-[22px]">
+            <div className="flex items-center justify-between text-[13px] text-[#5B6070]"><span className="font-bold">New match</span><span>just now</span></div>
+            <div className="flex flex-col gap-3.5 rounded-[22px] bg-[#FFD36B] p-[22px] text-[#2B2105]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex">
+                  {[['AP', 'bg-[#12131A]'], ['NH', 'bg-[#4F46E5]'], ['KS', 'bg-[#B4237A]']].map(([t, c], i) => (
+                    <span key={t} className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#FFD36B] text-xs font-bold text-white ${c} ${i ? '-ml-2' : ''}`}>{t}</span>
+                  ))}
                 </div>
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border-[6px] border-emerald-500 text-sm font-bold text-slate-900">83%</div>
+                <span className="text-[30px] font-extrabold tracking-tight">79%</span>
               </div>
-              <div className="mt-5 flex -space-x-2">
-                {["AP", "NF", "KS", "RH"].map((i, k) => (
-                  <div key={i} className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ring-2 ring-white ${["bg-brand-100 text-brand-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-800", "bg-sky-100 text-sky-700"][k]}`}>{i}</div>
-                ))}
+              <div>
+                <p className="text-[21px] font-extrabold tracking-tight">Data Structures &amp; Algorithms</p>
+                <p className="mt-1 text-sm font-semibold">Group of 3 · Thursday 19:00-21:00</p>
               </div>
-              <ul className="mt-5 space-y-2 text-sm text-slate-600">
-                <li className="flex gap-2"><span className="text-emerald-600">✓</span> Everyone is free on Tue evening</li>
-                <li className="flex gap-2"><span className="text-emerald-600">✓</span> Skill mix: 1 strong, 2 average, 1 needs support</li>
-                <li className="flex gap-2"><span className="text-emerald-600">✓</span> One natural leader, the rest contribute</li>
-                <li className="flex gap-2"><span className="text-emerald-600">✓</span> Common language: English</li>
-              </ul>
-              <div className="mt-6 grid grid-cols-2 gap-2">
-                <div className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] py-2 text-center text-sm font-semibold text-white">Accept</div>
-                <div className="rounded-lg border border-slate-300 py-2 text-center text-sm font-semibold text-slate-600">Decline</div>
-              </div>
+              <div className="h-2 rounded-full bg-[#2B2105]/15"><div className="h-2 w-[79%] rounded-full bg-[#2B2105]" /></div>
+            </div>
+            <ul className="flex flex-col gap-2.5 text-sm text-[#33374A]">
+              {['Everyone is free on Thursday evening', 'Skill mix: 1 advanced, 2 beginners', 'No clashing leaders'].map((t) => (
+                <li key={t} className="flex gap-2.5"><Check className="h-4 w-4 shrink-0 text-[#4F46E5]" strokeWidth={3} />{t}</li>
+              ))}
+            </ul>
+            <div className="flex gap-2.5" aria-hidden="true">
+              <span className="flex-1 rounded-full bg-[#12131A] py-3 text-center text-[15px] font-bold text-white">Accept</span>
+              <span className="flex-1 rounded-full border border-[#E4E6EE] py-3 text-center text-[15px] font-bold">Decline</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="text-center text-3xl font-bold tracking-tight text-slate-900">Matched on what really matters</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-center text-slate-600">K-Nearest Neighbours plus seven compatibility factors, weighted by a model that keeps learning from students' ratings.</p>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="card p-6">
-              <div className="inline-flex rounded-lg bg-brand-50 p-2.5 text-brand-600"><f.icon className="h-5 w-5" /></div>
-              <h3 className="mt-4 font-semibold text-slate-900">{f.title}</h3>
-              <p className="mt-1.5 text-sm text-slate-600">{f.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-4 rounded-[28px] bg-slate-900 py-16 text-white sm:mx-6">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-3xl font-bold tracking-tight">How it works</h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map(([t, d], i) => (
-              <div key={t}>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#4f7cff] to-[#5b4ff0] font-bold">{i + 1}</div>
-                <h3 className="mt-4 font-semibold">{t}</h3>
-                <p className="mt-1.5 text-sm text-slate-400">{d}</p>
+      <section id="how" className="border-t border-[#E4E6EE]">
+        <div className="mx-auto max-w-[1120px] px-6 py-24">
+          <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-[#5B6070]">How it works</p>
+          <h2 className="mt-3.5 max-w-[640px] text-[clamp(32px,4vw,48px)] font-extrabold leading-[1.08] tracking-[-0.035em]">Three steps. No awkward group chats with strangers.</h2>
+          <div className="mt-14 grid gap-10 md:grid-cols-3">
+            {STEPS.map(([title, text], i) => (
+              <div key={title} className="border-t-2 border-[#12131A] pt-6">
+                <p style={SERIF} className="text-[34px] italic text-[#4F46E5]">0{i + 1}</p>
+                <h3 className="mt-3 text-xl font-extrabold tracking-tight">{title}</h3>
+                <p className="mt-2.5 leading-relaxed text-[#4A4F5E]">{text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <div className="card flex flex-col items-start gap-4 p-8 sm:flex-row sm:items-center">
-          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600"><ShieldCheck className="h-6 w-6" /></div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-slate-900">Your data, your choice</h3>
-            <p className="mt-1 text-sm text-slate-600">
-              We only collect what is needed for matching - never gender, ethnicity or religion. You give consent before
-              anything is used, and you can withdraw at any time from your preferences page.
-            </p>
+      <section id="match" className="border-y border-[#E4E6EE] bg-white">
+        <div className="mx-auto flex max-w-[1120px] flex-wrap gap-14 px-6 py-24">
+          <div className="min-w-0 flex-[1_1_300px]">
+            <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-[#5B6070]">What we match on</p>
+            <h2 className="mt-3.5 text-[clamp(32px,4vw,48px)] font-extrabold leading-[1.08] tracking-[-0.035em]">
+              Seven factors,<br /><span style={SERIF} className="font-normal italic text-[#4F46E5]">not just grades.</span>
+            </h2>
+            <p className="mt-4 leading-relaxed text-[#4A4F5E]">Their weights are re-learned from students' ratings with logistic regression.</p>
           </div>
-          <Link to="/register" className="rounded-full bg-gradient-to-r from-[#4f7cff] to-[#5b4ff0] px-5 py-3 text-sm font-semibold text-white hover:brightness-110">Join now</Link>
+          <ul className="grid min-w-0 flex-[2_1_520px] gap-x-10 sm:grid-cols-2">
+            {FACTORS.map(([title, text, dot]) => (
+              <li key={title} className="flex items-baseline gap-3.5 border-b border-[#ECEEF4] py-[18px]">
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
+                <span><b className="font-bold">{title}</b><br /><span className="text-sm text-[#5B6070]">{text}</span></span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      <footer className="py-8 text-center text-sm font-medium text-slate-700">
-        StudyMatch AI · Final year project, Faculty of IT, Horizon Campus
+      <section id="privacy" className="mx-auto flex max-w-[1120px] flex-col gap-8 px-6 py-24">
+        <div>
+          <h2 className="text-[28px] font-extrabold tracking-tight">Your data, your choice.</h2>
+          <p className="mt-3 max-w-[560px] leading-relaxed text-[#4A4F5E]">We never collect gender, ethnicity or religion. You agree before anything is used, and you can withdraw at any time.</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-7 rounded-[32px] bg-[#12131A] px-8 py-14 text-white sm:px-10">
+          <h2 className="text-[clamp(30px,4vw,46px)] font-extrabold leading-[1.08] tracking-[-0.035em]">
+            No more random groups.<br /><span style={SERIF} className="font-normal italic text-[#C7CBFF]">Find yours.</span>
+          </h2>
+          <Link to={start} className="rounded-full bg-white px-8 py-4 font-bold text-[#12131A] hover:bg-[#ECEEF4]">Create your profile</Link>
+        </div>
+      </section>
+
+      <footer className="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-3 px-6 pb-12 text-sm text-[#5B6070]">
+        <span>StudyMatch AI · Faculty of IT, Horizon Campus</span>
+        <span>Final-year project by F.F. Fasmina and S.F. Saheela</span>
       </footer>
     </div>
   );
