@@ -7,6 +7,13 @@ import { Avatar, Badge, Button, Card, Empty, ErrorBox, Modal, PageHeader, ScoreR
 import { useApi } from '../lib/hooks';
 import { optionLabel } from '../lib/format';
 
+// Proposal factors: fits / partly fits / does not fit
+const STATUS = {
+  match: { dot: 'bg-emerald-600', icon: '✓', label: 'Fits' },
+  partial: { dot: 'bg-amber-600', icon: '~', label: 'Partly fits' },
+  miss: { dot: 'bg-rose-600', icon: '✕', label: 'Does not fit' },
+};
+
 const FACTOR_LABELS = {
   subject_overlap: 'Shared subjects', availability_overlap: 'Shared free time', study_type_match: 'Study type',
   collab_tendency_match: 'Collaboration style', learning_style_match: 'Learning style',
@@ -86,14 +93,22 @@ function MatchCard({ m, onChange }) {
           <h3 className="truncate text-lg font-bold text-slate-900">{m.full_name}</h3>
           <p className="truncate text-sm text-slate-500">{m.department}{m.academic_year ? ` · ${m.academic_year}` : ''}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {m.shared_subjects.slice(0, 3).map((s) => <Badge key={s} tone="brand" className="capitalize">{s}</Badge>)}
+            {m.shared_subjects.slice(0, 3).map((s) => <Badge key={s} tone="brand">{s}</Badge>)}
             {m.competency_level && <Badge>{m.competency_level}</Badge>}
             {m.collaboration_tendency && <Badge>{optionLabel('collaboration_tendency', m.collaboration_tendency)}</Badge>}
           </div>
         </div>
         <ScoreRing score={m.compatibility_score / 100} size={60} />
       </div>
-      <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{m.explanation}</p>
+      <ul className="mt-4 divide-y divide-slate-100 rounded-2xl bg-slate-50 px-4" aria-label="Proposal matching factors">
+        {(m.proposal || []).map((f) => (
+          <li key={f.factor} className="flex items-start gap-3 py-2.5 text-sm">
+            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${STATUS[f.status].dot}`} aria-label={STATUS[f.status].label}>{STATUS[f.status].icon}</span>
+            <span className="w-32 shrink-0 font-semibold text-slate-800">{f.factor}</span>
+            <span className="min-w-0 text-slate-600">{f.detail}</span>
+          </li>
+        ))}
+      </ul>
       <button onClick={() => setWhy(!why)} className="mt-2 inline-flex items-center gap-1 self-start text-xs font-semibold text-brand-600 hover:underline">
         <Info className="h-3.5 w-3.5" /> {why ? 'Hide' : 'Show'} the score breakdown
       </button>
@@ -135,7 +150,7 @@ export default function Matches() {
   const { data, error, loading, reload } = useApi('/matches/me');
   return (
     <div className="space-y-6">
-      <PageHeader title="My top matches" subtitle="K-Nearest Neighbours finds students similar to you, then each one is re-ranked on 7 compatibility factors." />
+      <PageHeader title="My top matches" subtitle="Students who share a subject with you, found by K-Nearest Neighbours and checked against the five factors in the proposal: subject, study type, availability, competency and social preferences." />
       {loading ? <Spinner label="Running the matching model" /> : error ? (
         <ErrorBox onRetry={reload}>{error} {error.includes('Preferences') && <Link className="font-semibold underline" to="/preferences">Open Preferences</Link>}</ErrorBox>
       ) : data.length === 0 ? (

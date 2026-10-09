@@ -182,7 +182,7 @@ def compatibility(features: Dict[str, float], weights: Dict[str, float]) -> floa
 def generate_explanation(features: Dict[str, float], shared_subjects: List[str], other: Preference) -> str:
     parts = []
     if shared_subjects:
-        parts.append(f"You both study {', '.join(s.title() for s in shared_subjects[:3])}.")
+        parts.append(f"You both study {', '.join(shared_subjects[:3])}.")
     if features["availability_overlap"] >= 0.6:
         parts.append("You have several free hours in common.")
     elif features["availability_overlap"] > 0:
@@ -323,16 +323,55 @@ def _vectorize(user: User, all_subjects: List[str], w: Dict[str, float]) -> np.n
     return np.concatenate([v * np.sqrt(weight) for v, weight in parts])
 
 
+def overlap_text(hours: set[int]) -> List[str]:
+    """Shared free hours as day ranges, e.g. ['Mon 18:00-21:00', 'Thu 18:00-21:00']."""
+    runs, ordered = [], sorted(hours)
+    for h in ordered:
+        if runs and h == runs[-1][1] and h // 24 == runs[-1][0] // 24:
+            runs[-1][1] = h + 1
+        else:
+            runs.append([h, h + 1])
+    return [f"{DAYS[s // 24][:3]} {s % 24:02d}:00-{(e - 1) % 24 + 1:02d}:00" for s, e in runs]
+
+
+def proposal_checklist(me: User, other: User, shared: List[str], subject: Optional[str], shared_hours: set) -> List[Dict[str, str]]:
+    """The proposal's five matching factors, side by side, with a simple verdict for each."""
+    p1, p2 = me.preference, other.preference
+    lv = {v: k for k, v in LEVELS.items()}
+    l1, l2 = level_for(p1, subject), level_for(p2, subject)
+    st = study_type_score(p1.preferred_study_type, p2.preferred_study_type)
+    comm = comm_score(p1.communication_preference, p2.communication_preference)
+    collab = _pair(_COLLAB, _clean(p1.collaboration_tendency) or "collaborative peer", _clean(p2.collaboration_tendency) or "collaborative peer")
+    slots = overlap_text(shared_hours)
+    comp = calculate_competency_score(l1, l2)
+    return [
+        {"factor": "Subject interests", "detail": ", ".join(shared),
+         "status": "match"},
+        {"factor": "Study type", "detail": f"You: {p1.preferred_study_type or 'Group'} · Them: {p2.preferred_study_type or 'Group'}",
+         "status": "match" if st >= 0.8 else "miss"},
+        {"factor": "Availability", "detail": (", ".join(slots[:3]) + (f" +{len(slots) - 3} more" if len(slots) > 3 else "")) if slots else "No shared free time",
+         "status": "match" if len(shared_hours) >= 3 else "partial" if shared_hours else "miss"},
+        {"factor": "Competency level", "detail": f"{subject.title() if subject else 'Overall'}: you {lv.get(l1, '?').title()} · them {lv.get(l2, '?').title()}",
+         "status": "match" if comp >= 1.0 else "partial" if comp >= 0.6 else "miss"},
+        {"factor": "Social preferences", "detail": f"{p2.communication_preference or '-'} · {p2.collaboration_tendency or '-'}",
+         "status": "match" if comm >= 0.6 and collab >= 0.8 else "partial" if comm >= 0.3 and collab >= 0.5 else "miss"},
+    ]
+
+
 def get_top_user_matches(current_user: User, other_users: List[User], top_n: int = 5,
                          weights: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
-    """KNN finds the most similar students, then each candidate is re-ranked by compatibility."""
+    """KNN finds the most similar students, then each candidate is re-ranked by compatibility.
+    Only students who share at least one subject are considered (proposal: subject interests)."""
     if not current_user.preference:
         return []
+    my_subjects = subjects_of(current_user.preference)
     candidates = [u for u in other_users if u.preference and u.id != current_user.id and u.consent_given
-                  and not u.is_platform_admin and u.availabilities]
+                  and not u.is_platform_admin and u.availabilities and my_subjects & subjects_of(u.preference)]
     if not candidates:
         return []
     w = weights or load_weights()
+    # The student's own spelling of each subject, for display
+    names = {s.strip().lower(): s.strip() for s in (current_user.preference.subjects_of_interest or "").split(",") if s.strip()}
 
     all_subjects = sorted({s for u in candidates + [current_user] for s in subjects_of(u.preference)})
     query = _vectorize(current_user, all_subjects, w)
@@ -344,17 +383,17 @@ def get_top_user_matches(current_user: User, other_users: List[User], top_n: int
     distances, indices = knn.kneighbors([query])
 
     my_hours = hour_set(current_user)
-    my_subjects = subjects_of(current_user.preference)
     results = []
     for idx, dist in zip(indices[0], distances[0]):
         other = candidates[idx]
+        their_hours = hour_set(other)
         shared = sorted(my_subjects & subjects_of(other.preference))
-        subject = shared[0] if shared else None
-        feats = pair_features(current_user, other, subject=None, hours1=my_hours)
-        if subject:
-            feats["competency_match"] = calculate_competency_score(level_for(current_user.preference, subject),
-                                                                   level_for(other.preference, subject))
+        subject = shared[0]
+        feats = pair_features(current_user, other, subject=None, hours1=my_hours, hours2=their_hours)
+        feats["competency_match"] = calculate_competency_score(level_for(current_user.preference, subject),
+                                                               level_for(other.preference, subject))
         score = compatibility(feats, w)
+        shared_names = [names.get(s, s.title()) for s in shared]
         results.append({
             "target_user_id": other.id,
             "full_name": other.full_name,
@@ -363,12 +402,13 @@ def get_top_user_matches(current_user: User, other_users: List[User], top_n: int
             "learning_style": other.preference.learning_style,
             "collaboration_tendency": other.preference.collaboration_tendency,
             "competency_level": other.preference.competency_level,
-            "shared_subjects": shared,
-            "shared_hours": len(my_hours & hour_set(other)),
+            "shared_subjects": shared_names,
+            "shared_hours": len(my_hours & their_hours),
             "knn_similarity": round(float(1 - dist) * 100, 1),
             "compatibility_score": round(score * 100, 1),
             "factors": {k: round(v, 3) for k, v in feats.items()},
-            "explanation": generate_explanation(feats, shared, other.preference),
+            "proposal": proposal_checklist(current_user, other, shared_names, subject, my_hours & their_hours),
+            "explanation": generate_explanation(feats, shared_names, other.preference),
         })
     results.sort(key=lambda r: r["compatibility_score"], reverse=True)
     return results[:top_n]
