@@ -14,8 +14,13 @@ PURPOSE_TEXT = {
 def send_email(to: str, subject: str, html: str, text: str) -> bool:
     """Send one email over SMTP (STARTTLS on 587, SSL on 465). Returns False when email is
     not set up or sending failed - callers never fail because of email."""
+    return send_email_checked(to, subject, html, text) is None
+
+
+def send_email_checked(to: str, subject: str, html: str, text: str):
+    """Like send_email, but returns None on success or a plain reason on failure (for the admin check)."""
     if not settings.email_enabled:
-        return False
+        return "Email is not set up: SMTP_USER and SMTP_PASSWORD are empty."
     msg = MIMEMultipart("alternative")
     msg["From"] = f"{settings.EMAILS_FROM_NAME} <{settings.EMAILS_FROM_EMAIL or settings.SMTP_USER}>"
     msg["To"] = to
@@ -33,10 +38,13 @@ def send_email(to: str, subject: str, html: str, text: str) -> bool:
                 server.starttls(context=context)
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                 server.send_message(msg)
-        return True
+        return None
+    except smtplib.SMTPAuthenticationError as exc:
+        print(f"Email to {to} failed: {exc}")
+        return "Gmail refused the login: check SMTP_USER is the full Gmail address and SMTP_PASSWORD is the 16-letter app password (no spaces)."
     except Exception as exc:  # never show SMTP details to the user
         print(f"Email to {to} failed: {exc}")
-        return False
+        return f"Sending failed: {type(exc).__name__}."
 
 
 def send_code_email(to: str, code: str, purpose: str) -> bool:

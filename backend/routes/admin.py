@@ -16,6 +16,7 @@ from models.all_models import (
 )
 from schemas.study_group import MatchRunIn, SubjectIn
 from services.group_formation import notify, run_group_formation
+from utils.email import send_email_checked
 from services.matching_service import DEFAULT_WEIGHTS, FACTOR_LABELS, FACTORS, load_weights, optimize_matching_weights
 
 router = APIRouter()
@@ -385,3 +386,13 @@ def clear_demo(db: Session = Depends(get_db), admin: User = Depends(get_platform
     db.query(ModelWeights).delete(synchronize_session=False)
     db.commit()
     return {"removed": len(ids)}
+
+
+@router.post("/email-test")
+def email_test(db: Session = Depends(get_db), admin: User = Depends(get_platform_admin)):
+    """Send a test email to the sending Gmail address itself and report whether it worked."""
+    from core.config import settings
+    to = settings.SMTP_USER
+    reason = send_email_checked(to, "StudyMatch email test", "<p>Email sending works.</p>", "Email sending works.")
+    masked = (to[:3] + "***" + to[to.find("@"):]) if "@" in to else "(not set)"
+    return {"ok": reason is None, "sent_to": masked, "message": reason or f"Test email sent to {masked}. Email codes will work."}
