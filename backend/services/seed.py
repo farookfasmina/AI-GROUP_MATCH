@@ -154,7 +154,11 @@ def seed_demo(db: Session):
                                   usefulness=rng.choice([3, 4, 5, 5]), ease=rng.choice([4, 4, 5, 3])))
     db.query(Notification).filter(Notification.user_id != featured.id).update({"is_read": True})
     db.commit()
-    optimize_matching_weights(db, note="Learned from demo feedback (seed data)")
+    try:
+        optimize_matching_weights(db, note="Learned from demo feedback (seed data)")
+    except Exception as exc:  # optional - the admin can press "Re-learn from feedback" later
+        db.rollback()
+        print("Demo weight learning skipped:", exc)
 
 
 def seed(db: Session):

@@ -52,9 +52,11 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         url = self.DATABASE_URL.strip().rstrip(";")
-        # Render/Heroku hand out postgres:// URLs; SQLAlchemy needs postgresql://
-        if url.startswith("postgres://"):
-            url = "postgresql://" + url[len("postgres://"):]
+        # Hosts hand out postgres:// or postgresql:// URLs. Name the installed driver (psycopg2)
+        # explicitly - newer SQLAlchemy versions otherwise look for psycopg 3 and fail to start.
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                url = "postgresql+psycopg2://" + url[len(prefix):]
         return url
 
 

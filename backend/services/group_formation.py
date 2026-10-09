@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import Dict, List, Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from models.all_models import MatchRun, Membership, Notification, StudyGroup, Subject, User
 from services.matching_service import (
@@ -252,7 +252,9 @@ def busy_ids(db: Session, subject: str) -> set:
 def waiting_students(db: Session, subject: str) -> List[Candidate]:
     busy = busy_ids(db, subject)
     out = []
-    for u in db.query(User).filter(User.consent_given.is_(True), User.is_platform_admin.is_(False)).all():
+    students = (db.query(User).filter(User.consent_given.is_(True), User.is_platform_admin.is_(False))
+                .options(selectinload(User.preference), selectinload(User.availabilities)).all())
+    for u in students:
         if u.id in busy or not u.preference or subject.lower() not in subjects_of(u.preference):
             continue
         hours = frozenset(hour_set(u))

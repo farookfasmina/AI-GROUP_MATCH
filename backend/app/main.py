@@ -24,6 +24,9 @@ async def lifespan(_app):
     db = SessionLocal()
     try:
         seed(db)
+    except Exception as exc:  # start-up data must never stop the app from starting
+        db.rollback()
+        print("Start-up data skipped:", exc)
     finally:
         db.close()
     yield

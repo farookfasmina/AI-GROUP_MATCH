@@ -25,7 +25,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 from sklearn.neighbors import NearestNeighbors
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from models.all_models import GroupFeedback, MatchFeedback, Membership, ModelWeights, Preference, StudyGroup, User
 
@@ -223,6 +223,9 @@ def load_weights(db: Optional[Session] = None) -> Dict[str, float]:
 def training_samples(db: Session) -> tuple[list[list[float]], list[int]]:
     """Each rated pair of students -> 7 factor scores and a label (1 = rated 4 or 5 on average)."""
     X, y = [], []
+    # Load every student with their preferences and free time in two queries, instead of
+    # one query per student (slow over a remote database such as Neon).
+    db.query(User).options(selectinload(User.preference), selectinload(User.availabilities)).all()
     for f in db.query(MatchFeedback).all():
         if not (f.user and f.matched_user and f.user.preference and f.matched_user.preference):
             continue
@@ -230,7 +233,9 @@ def training_samples(db: Session) -> tuple[list[list[float]], list[int]]:
         feats = pair_features(f.user, f.matched_user)
         X.append([feats[k] for k in FACTORS])
         y.append(1 if avg >= 4 else 0)
-    for g in db.query(StudyGroup).filter(StudyGroup.kind.in_(["ai_group", "buddy"])).all():
+    groups = (db.query(StudyGroup).filter(StudyGroup.kind.in_(["ai_group", "buddy"]))
+              .options(selectinload(StudyGroup.feedback), selectinload(StudyGroup.memberships)).all())
+    for g in groups:
         ratings = {f.user_id: (f.compatibility_rating + f.collaboration_quality + f.scheduling_ease) / 3 for f in g.feedback}
         if not ratings:
             continue
