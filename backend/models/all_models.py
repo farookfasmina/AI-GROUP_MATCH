@@ -22,6 +22,8 @@ class User(Base):
     # Research consent (proposal: Ethics) - students are only matched after agreeing.
     consent_given = Column(Boolean, default=False)
     consent_at = Column(DateTime, nullable=True)
+    # True for accounts made before email codes existed; new sign-ups start False when email sending is set up.
+    email_verified = Column(Boolean, default=True)
     # Demo students are flagged so an admin can remove them before real data collection.
     is_demo = Column(Boolean, default=False)
 
@@ -250,3 +252,29 @@ class ModelWeights(Base):
     accuracy = Column(Float, nullable=True)
     note = Column(String, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmailCode(Base):
+    """One-time 6-digit codes sent by email (confirm the address, reset the password).
+    Only a hash of the code is stored; codes expire after 10 minutes and allow 5 tries."""
+    __tablename__ = "email_codes"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    purpose = Column(String, nullable=False)  # verify | reset
+    code_hash = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LoginAttempt(Base):
+    """Sign-in attempts, used to lock an email for 15 minutes after 5 wrong passwords.
+    Stored in the database because serverless instances share no memory."""
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String, nullable=False, index=True)
+    success = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

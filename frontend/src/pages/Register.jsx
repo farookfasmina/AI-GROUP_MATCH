@@ -23,7 +23,11 @@ export default function Register() {
     setBusy(true);
     try {
       const { confirm: _confirm, ...body } = form;
-      await api.post('/auth/register', body);
+      const r = await api.post('/auth/register', body);
+      if (r.data.verification_required) {
+        navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
+        return;
+      }
       await login(form.email, form.password);
       navigate('/onboarding', { replace: true });
     } catch (err) {

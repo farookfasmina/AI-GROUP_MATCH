@@ -106,7 +106,39 @@ def test_full_student_and_admin_flow():
         assert client.post(f"{API}/admin/demo/clear", headers=admin_h).json()["removed"] > 0
 
 
-def test_reset_password_uses_body_not_url():
+def test_email_codes_and_login_lock(monkeypatch):
+    """Sign-up code, wrong-code limit, password reset by code, and the 5-wrong-passwords lock."""
+    from core.config import settings
+    import routes.auth as auth_routes
+    sent = {}
+    monkeypatch.setattr(settings, "SMTP_USER", "test@example.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "x")
+    monkeypatch.setattr(auth_routes, "send_code_email", lambda to, code, purpose: sent.update({(to, purpose): code}))
     with TestClient(app) as client:
-        r = client.post(f"{API}/auth/reset-password", json={"token": "bad", "new_password": "Whatever123"})
+        email = "otp.student@uni.lk"
+        r = client.post(f"{API}/auth/register", json={"email": email, "password": "Passw0rd!", "full_name": "Otp Student"})
+        assert r.json()["verification_required"] is True
+        # Cannot sign in before confirming the email
+        assert client.post(f"{API}/auth/login", data={"username": email, "password": "Passw0rd!"}).status_code == 403
+        assert client.post(f"{API}/auth/verify-email", json={"email": email, "code": "000000" if sent[(email, "verify")] != "000000" else "111111"}).status_code == 400
+        r = client.post(f"{API}/auth/verify-email", json={"email": email, "code": sent[(email, "verify")]})
+        assert r.status_code == 200 and r.json()["access_token"]
+        assert client.post(f"{API}/auth/login", data={"username": email, "password": "Passw0rd!"}).status_code == 200
+
+        # Reset password with an emailed code; the code works only once
+        assert client.post(f"{API}/auth/forgot-password", json={"email": email}).status_code == 200
+        code = sent[(email, "reset")]
+        assert client.post(f"{API}/auth/reset-password", json={"email": email, "code": code, "new_password": "Brandnew123"}).status_code == 200
+        assert client.post(f"{API}/auth/reset-password", json={"email": email, "code": code, "new_password": "Other12345"}).status_code == 400
+        assert client.post(f"{API}/auth/login", data={"username": email, "password": "Brandnew123"}).status_code == 200
+
+        # Five wrong passwords lock the email, even for the right password
+        for _ in range(5):
+            assert client.post(f"{API}/auth/login", data={"username": email, "password": "wrong-one"}).status_code == 401
+        assert client.post(f"{API}/auth/login", data={"username": email, "password": "Brandnew123"}).status_code == 429
+
+
+def test_reset_password_needs_a_valid_code():
+    with TestClient(app) as client:
+        r = client.post(f"{API}/auth/reset-password", json={"email": "student@demo.lk", "code": "123456", "new_password": "Whatever123"})
         assert r.status_code == 400

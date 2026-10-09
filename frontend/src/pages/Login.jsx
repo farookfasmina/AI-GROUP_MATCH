@@ -47,6 +47,10 @@ export default function Login() {
       const me = await login(email, password);
       navigate(homeFor(me), { replace: true });
     } catch (err) {
+      if (err.response?.status === 403) {
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
       setError(errorText(err));
     } finally {
       setBusy(false);
