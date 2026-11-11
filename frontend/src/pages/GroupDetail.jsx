@@ -65,7 +65,7 @@ function Chat({ g, canPost }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const bottom = useRef(null);
+  const list = useRef(null);
   const fileRef = useRef(null);
   const last = msgs.length ? msgs[msgs.length - 1].id : 0;
 
@@ -84,8 +84,10 @@ function Chat({ g, canPost }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g.id]);
   useInterval(() => load(last), 4000);
+  // Scroll the message list itself. (scrollIntoView moved the whole page, so the top of the
+  // screen jumped out of view every time the chat opened.)
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'nearest' });
+    if (list.current) list.current.scrollTop = list.current.scrollHeight;
   }, [msgs.length]);
 
   const send = async (e) => {
@@ -105,6 +107,11 @@ function Chat({ g, canPost }) {
   const upload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setError('The file is larger than 4 MB.');
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
     setUploading(true);
     setError('');
     const fd = new FormData();
@@ -122,7 +129,7 @@ function Chat({ g, canPost }) {
 
   return (
     <Card className="flex h-[34rem] flex-col">
-      <div className="flex-1 space-y-4 overflow-y-auto p-5 scrollbar-thin">
+      <div ref={list} className="flex-1 space-y-4 overflow-y-auto p-5 scrollbar-thin">
         {msgs.length === 0 && <Empty title="No messages yet">Say hello and suggest a time for your first session.</Empty>}
         {msgs.map((m) => {
           const mine = m.sender_id === user.id;
@@ -141,13 +148,12 @@ function Chat({ g, canPost }) {
             </div>
           );
         })}
-        <div ref={bottom} />
       </div>
       {error && <div className="px-5 pb-2"><ErrorBox>{error}</ErrorBox></div>}
       {canPost ? (
         <form onSubmit={send} className="flex gap-2 border-t border-slate-100 p-3">
           <input type="file" ref={fileRef} className="hidden" onChange={upload} accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.txt,.zip" />
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="rounded-lg border border-slate-300 px-3 text-slate-500 hover:bg-slate-50" aria-label="Share a file" title="Share a file (max 10 MB)">
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="rounded-lg border border-slate-300 px-3 text-slate-500 hover:bg-slate-50" aria-label="Share a file" title="Share a file (max 4 MB)">
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
           </button>
           <input className="input" placeholder="Write a message..." value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} aria-label="Message" />

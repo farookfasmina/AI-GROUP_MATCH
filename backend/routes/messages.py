@@ -72,11 +72,8 @@ async def upload_group_file(group_id: int, file: UploadFile = File(...), db: Ses
     data = await file.read(settings.MAX_UPLOAD_MB * 1024 * 1024 + 1)
     if len(data) > settings.MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(status_code=400, detail=f"The file is larger than {settings.MAX_UPLOAD_MB} MB.")
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    stored = f"{uuid.uuid4().hex}{ext}"
-    with open(os.path.join(settings.UPLOAD_DIR, stored), "wb") as out:
-        out.write(data)
-    msg = GroupMessage(group_id=group.id, sender_id=current_user.id, is_file=True,
+    stored = f"{uuid.uuid4().hex}{ext}"  # long random name: the link cannot be guessed
+    msg = GroupMessage(group_id=group.id, sender_id=current_user.id, is_file=True, file_data=data,
                        file_url=f"/uploads/{stored}", file_name=os.path.basename(file.filename)[:200])
     db.add(msg)
     notify_new_message(db, group, current_user, f"shared {msg.file_name}")

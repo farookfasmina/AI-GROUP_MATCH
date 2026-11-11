@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, Time
-from sqlalchemy.orm import relationship
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, Time
+from sqlalchemy.orm import deferred, relationship
 
 from core.database import Base
 
@@ -170,6 +170,10 @@ class GroupMessage(Base):
     is_file = Column(Boolean, default=False)
     file_url = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
+    # The shared file itself. It is kept in the database because the hosted site has no disk
+    # that lasts from one request to the next (files saved to a folder there were lost).
+    # deferred: read only when the file is opened, never with the chat list.
+    file_data = deferred(Column(LargeBinary, nullable=True))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     group = relationship("StudyGroup", back_populates="messages")

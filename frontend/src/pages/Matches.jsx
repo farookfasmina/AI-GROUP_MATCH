@@ -75,8 +75,9 @@ function MatchCard({ m, onChange }) {
   const connect = async () => {
     setBusy(true);
     try {
-      await api.post(`/matches/${m.target_user_id}/connect`);
-      toast(`Request sent to ${m.full_name}`);
+      const r = await api.post(`/matches/${m.target_user_id}/connect`);
+      toast(r.data.group_id ? `${m.full_name} accepted - your private group is ready` : `Request sent to ${m.full_name}`);
+      window.dispatchEvent(new Event('sm:notifications'));
       onChange();
     } catch (e) {
       toast(errorText(e), 'error');

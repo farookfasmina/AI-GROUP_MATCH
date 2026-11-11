@@ -42,6 +42,10 @@ def update_current_user(user_in: UserUpdate, db: Session = Depends(get_db), curr
 
 @router.post("/me/password")
 def change_password(data: ChangePasswordIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.is_demo:
+        # Everyone signs in to the demo account with the same password. One visitor changing
+        # it would lock all the others out.
+        raise HTTPException(status_code=400, detail="This is a shared demo account, so its password cannot be changed.")
     if not verify_password(data.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Your current password is not correct.")
     current_user.hashed_password = get_password_hash(data.new_password)

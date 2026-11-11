@@ -16,6 +16,7 @@ from models.all_models import (
 )
 from schemas.study_group import MatchRunIn, SubjectIn
 from services.group_formation import notify, run_group_formation
+from services.seed import seed_demo
 from utils.email import send_email_checked
 from services.matching_service import DEFAULT_WEIGHTS, FACTOR_LABELS, FACTORS, load_weights, optimize_matching_weights
 
@@ -386,6 +387,15 @@ def clear_demo(db: Session = Depends(get_db), admin: User = Depends(get_platform
     db.query(ModelWeights).delete(synchronize_session=False)
     db.commit()
     return {"removed": len(ids)}
+
+
+@router.post("/demo/reset")
+def reset_demo(db: Session = Depends(get_db), admin: User = Depends(get_platform_admin)):
+    """Put the demo back to its starting state (before showing the platform to someone):
+    remove the demo students and everything they did, then load them fresh."""
+    clear_demo(db=db, admin=admin)
+    seed_demo(db, force=True)
+    return {"students": db.query(User).filter(User.is_demo.is_(True)).count()}
 
 
 @router.post("/email-test")
