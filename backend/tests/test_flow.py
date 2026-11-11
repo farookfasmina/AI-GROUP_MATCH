@@ -63,12 +63,14 @@ def test_full_student_and_admin_flow():
 
         # 5. Partner request -> the other student accepts -> private group
         partner = matches[0]["target_user_id"]
-        assert client.post(f"{API}/matches/{partner}/connect", headers=h).status_code == 200
         admin_h = login(client, "admin@studymatch.lk", "Admin@1234")
         users = client.get(f"{API}/admin/users", headers=admin_h).json()
         partner_email = next(u["email"] for u in users if u["id"] == partner)
         ph = login(client, partner_email, "Demo@1234")
         me_id = client.get(f"{API}/users/me", headers=h).json()["id"]
+        # Nobody can "accept" a request that was never sent (old bug: it opened a private group anyway)
+        assert client.post(f"{API}/matches/{me_id}/accept", headers=ph).status_code == 400
+        assert client.post(f"{API}/matches/{partner}/connect", headers=h).status_code == 200
         group_id = client.post(f"{API}/matches/{me_id}/accept", headers=ph).json()["group_id"]
         # The same group is found again from either side (old bug: could return someone else's group)
         assert client.post(f"{API}/matches/{partner}/init-private-group", headers=h).json()["group_id"] == group_id
@@ -87,6 +89,8 @@ def test_full_student_and_admin_flow():
         other = next(u for u in users if u["is_demo"] and u["id"] not in (partner, me_id))
         oh = login(client, other["email"], "Demo@1234")
         assert client.get(f"{API}/groups/{group_id}/messages", headers=oh).status_code == 403
+        # ...and cannot rate a student they never studied with (ratings train the model)
+        assert client.post(f"{API}/matches/{me_id}/feedback", headers=oh, json=fb).status_code == 400
 
         # 8. AI group formation finds a group for the new student, who can accept it
         r = client.post(f"{API}/matches/find-group", headers=h)
@@ -118,7 +122,7 @@ def test_email_codes_and_login_lock(monkeypatch):
     sent = {}
     monkeypatch.setattr(settings, "SMTP_USER", "test@example.com")
     monkeypatch.setattr(settings, "SMTP_PASSWORD", "x")
-    monkeypatch.setattr(auth_routes, "send_code_email", lambda to, code, purpose: sent.update({(to, purpose): code}))
+    monkeypatch.setattr(auth_routes, "send_code_email", lambda to, code, purpose: sent.update({(to, purpose): code}) or True)
     with TestClient(app) as client:
         email = "otp.student@uni.lk"
         r = client.post(f"{API}/auth/register", json={"email": email, "password": "Passw0rd!", "full_name": "Otp Student"})
@@ -147,3 +151,51 @@ def test_reset_password_needs_a_valid_code():
     with TestClient(app) as client:
         r = client.post(f"{API}/auth/reset-password", json={"email": "student@demo.lk", "code": "123456", "new_password": "Whatever123"})
         assert r.status_code == 400
+
+
+def test_code_email_that_cannot_be_sent_is_not_hidden(monkeypatch):
+    """The code is sent before the page gets its answer, so a failure is told to the student
+    (old bug: it was sent afterwards, was often lost on the hosted site, and nobody knew)."""
+    from core.config import settings
+    import routes.auth as auth_routes
+    import services.otp as otp
+    working = {"on": False}
+    sent = []
+    monkeypatch.setattr(settings, "SMTP_USER", "test@example.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "x")
+    monkeypatch.setattr(otp, "RESEND_SECONDS", 0)
+
+    def fake_send(to, code, purpose):
+        if working["on"]:
+            sent.append(code)
+        return working["on"]
+
+    monkeypatch.setattr(auth_routes, "send_code_email", fake_send)
+    with TestClient(app) as client:
+        email = "no.mail@uni.lk"
+        r = client.post(f"{API}/auth/register", json={"email": email, "password": "Passw0rd!", "full_name": "No Mail"})
+        assert r.status_code == 200 and r.json()["verification_required"] is True
+        assert r.json()["email_sent"] is False
+        assert client.post(f"{API}/auth/resend-code", json={"email": email, "purpose": "verify"}).status_code == 503
+        assert client.post(f"{API}/auth/forgot-password", json={"email": email}).status_code == 503
+
+        # Email works again. Signing in with the right password sends a fresh code by itself,
+        # so a student who comes back days later is not left looking at an expired one.
+        working["on"] = True
+        assert client.post(f"{API}/auth/login", data={"username": email, "password": "Passw0rd!"}).status_code == 403
+        assert len(sent) == 1
+        r = client.post(f"{API}/auth/verify-email", json={"email": email, "code": sent[0]})
+        assert r.status_code == 200 and r.json()["access_token"]
+        assert client.post(f"{API}/auth/login", data={"username": email, "password": "Passw0rd!"}).status_code == 200
+
+
+def test_sign_in_does_not_load_the_matching_library():
+    """scikit-learn takes seconds to load; the app must start, and sign in, without it."""
+    import subprocess
+    code = ("import os, sys, tempfile; "
+            "os.environ['DATABASE_URL'] = 'sqlite:///' + os.path.join(tempfile.mkdtemp(), 't.db'); "
+            "os.environ['SEED_DEMO'] = 'false'; "
+            "import app.main; "
+            "sys.exit(1 if 'sklearn' in sys.modules else 0)")
+    backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert subprocess.run([sys.executable, "-c", code], cwd=backend).returncode == 0

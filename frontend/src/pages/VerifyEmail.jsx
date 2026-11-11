@@ -49,6 +49,8 @@ export function ResendButton({ email, purpose }) {
 export default function VerifyEmail() {
   const [params] = useSearchParams();
   const email = params.get('email') || '';
+  // sent=0: the account was made, but the code email could not be sent.
+  const notSent = params.get('sent') === '0';
   const navigate = useNavigate();
   const { loginWithToken } = useAuth();
   const [code, setCode] = useState('');
@@ -72,7 +74,10 @@ export default function VerifyEmail() {
   }
 
   return (
-    <AuthShell title="Confirm your email" subtitle={`We sent a 6-digit code to ${email || 'your email'}. It works for 10 minutes.`}
+    <AuthShell title="Confirm your email"
+      subtitle={notSent
+        ? `Your account is ready, but we could not send the code to ${email || 'your email'} just now. Wait a minute, then press "send a new code" below.`
+        : `We sent a 6-digit code to ${email || 'your email'}. It works for 10 minutes. It can take a minute to arrive - look in Spam too.`}
       footer={<Link to="/login" className="font-semibold text-brand-600 hover:underline">Back to sign in</Link>}>
       <form onSubmit={submit} className="space-y-4">
         <ErrorBox>{error}</ErrorBox>

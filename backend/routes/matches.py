@@ -90,6 +90,12 @@ def accept_request(sender_id: int, db: Session = Depends(get_db), current_user: 
     if not sender:
         raise HTTPException(status_code=404, detail="Student not found")
     group = buddy_group_between(db, current_user.id, sender.id)
+    asked = db.query(Notification).filter(Notification.user_id == current_user.id, Notification.type == "match_request",
+                                          Notification.payload_id == sender.id).first()
+    if not group and not asked:
+        # Without this check any student could "accept" a request nobody sent, and so open a
+        # private group with - and see the email of - any other student.
+        raise HTTPException(status_code=400, detail="This student has not asked to study with you.")
     if not group:
         group = StudyGroup(name=f"{sender.full_name} & {current_user.full_name}", subject="Study partners",
                            description="Private study-partner group.", creator_id=sender.id, kind="buddy", status="active")
@@ -120,6 +126,9 @@ def submit_match_feedback(target_user_id: int, feedback: FeedbackCreate, db: Ses
     """Rate a study partner. Every rating is training data for the matching model."""
     if not db.get(User, target_user_id):
         raise HTTPException(status_code=404, detail="Student not found")
+    if not buddy_group_between(db, current_user.id, target_user_id):
+        # Ratings train the model, so only real study partners may rate each other.
+        raise HTTPException(status_code=400, detail="You can rate a student once you are study partners.")
     row = db.query(MatchFeedback).filter(MatchFeedback.user_id == current_user.id,
                                          MatchFeedback.matched_user_id == target_user_id).first()
     if not row:
