@@ -25,7 +25,7 @@ export default function Register() {
       const { confirm: _confirm, ...body } = form;
       const r = await api.post('/auth/register', body);
       if (r.data.verification_required) {
-        navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
+        navigate(`/verify-email?email=${encodeURIComponent(form.email)}${r.data.email_sent === false ? '&sent=0' : ''}`, { replace: true });
         return;
       }
       await login(form.email, form.password);

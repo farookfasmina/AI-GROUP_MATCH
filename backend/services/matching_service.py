@@ -22,10 +22,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score
-from sklearn.neighbors import NearestNeighbors
 from sqlalchemy.orm import Session, selectinload
+
+# scikit-learn is imported inside the two functions that use it. Loading it takes about
+# 3 seconds, and on the hosted site every fresh server start paid that before it could
+# answer anything - including a simple sign-in, which needs no matching at all.
 
 from models.all_models import GroupFeedback, MatchFeedback, Membership, ModelWeights, Preference, StudyGroup, User
 
@@ -262,6 +263,9 @@ def optimize_matching_weights(db: Session, note: str = "") -> Dict[str, Any]:
         return {"weights": current, "samples": len(X), "accuracy": None, "updated": False,
                 "message": "Not enough feedback yet - at least 20 rated pairs with both good and poor ratings are needed."}
 
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import cross_val_score
+
     Xa, ya = np.array(X), np.array(y)
     model = LogisticRegression(C=1.0, max_iter=1000)
     model.fit(Xa, ya)
@@ -376,6 +380,8 @@ def get_top_user_matches(current_user: User, other_users: List[User], top_n: int
     all_subjects = sorted({s for u in candidates + [current_user] for s in subjects_of(u.preference)})
     query = _vectorize(current_user, all_subjects, w)
     matrix = np.array([_vectorize(u, all_subjects, w) for u in candidates])
+
+    from sklearn.neighbors import NearestNeighbors
 
     k = min(max(top_n * 3, 15), len(candidates))
     knn = NearestNeighbors(n_neighbors=k, metric="cosine")
