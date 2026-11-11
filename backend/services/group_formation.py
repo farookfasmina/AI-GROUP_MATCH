@@ -327,8 +327,13 @@ def run_group_formation(db: Session, subjects: Optional[List[str]] = None, min_s
                                                StudyGroup.kind.in_(["ai_group", "buddy"])).count()
         made = [_save(db, subject, m, sc, run, existing + i) for i, m in enumerate(groups + pairs, start=1)]
         for c in unmatched:
-            notify(db, c.user.id, f"No match yet for {subject}: not enough students share your free time. "
-                                  f"Adding more free hours helps - we will try again on the next run.", "general", None, "/preferences")
+            # Any student pressing "Find a group" runs this for everyone who is waiting, so the
+            # same student could get this notice again and again. One unread notice is enough.
+            told = db.query(Notification).filter(Notification.user_id == c.user.id, Notification.is_read.is_(False),
+                                                 Notification.message.like(f"No match yet for {subject}:%")).first()
+            if not told:
+                notify(db, c.user.id, f"No match yet for {subject}: not enough students share your free time. "
+                                      f"Adding more free hours helps - we will try again on the next run.", "general", None, "/preferences")
 
         size = max(min_size, min(max_size, round(statistics.median(c.size_pref for c in group_pool)))) if group_pool else 2
         base = random_baseline(group_pool if len(group_pool) >= 2 else buddy_pool, sc, size if len(group_pool) >= 2 else 2)

@@ -44,7 +44,9 @@ export default function AdminMatching() {
     try {
       const r = await api.post('/admin/matching/run', { subjects: chosen, min_size: minSize, max_size: maxSize });
       setResult(r.data);
-      toast(`${r.data.stats.groups} groups and ${r.data.stats.pairs} buddy pairs formed - students were notified`);
+      toast(r.data.stats.groups + r.data.stats.pairs > 0
+        ? `${r.data.stats.groups} groups and ${r.data.stats.pairs} buddy pairs formed - students were notified`
+        : 'No new groups: every student who can be matched already has one. The rest are waiting for students who share their free time.');
       runs.reload();
       subjects.reload();
     } catch (e) {

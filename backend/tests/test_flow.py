@@ -199,3 +199,43 @@ def test_sign_in_does_not_load_the_matching_library():
             "sys.exit(1 if 'sklearn' in sys.modules else 0)")
     backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     assert subprocess.run([sys.executable, "-c", code], cwd=backend).returncode == 0
+
+
+def test_demo_account_works_for_a_visiting_panel():
+    """A panel signs in with the shared demo account: everything must work and keep working."""
+    with TestClient(app) as client:
+        h = login(client, "student@demo.lk", "Demo@1234")
+        admin_h = login(client, "admin@studymatch.lk", "Admin@1234")
+
+        # The shared demo password cannot be changed by one visitor
+        r = client.post(f"{API}/users/me/password", headers=h, json={"current_password": "Demo@1234", "new_password": "Changed123"})
+        assert r.status_code == 400
+        login(client, "student@demo.lk", "Demo@1234")
+
+        # A study request to a demo student is accepted at once, so the private group can be shown
+        partner = client.get(f"{API}/matches/me", headers=h).json()[0]["target_user_id"]
+        r = client.post(f"{API}/matches/{partner}/connect", headers=h)
+        assert r.status_code == 200 and r.json()["group_id"]
+        group_id = r.json()["group_id"]
+
+        # A shared file is kept in the database and can be opened again (hosting keeps no folder)
+        r = client.post(f"{API}/groups/{group_id}/upload", headers=h, files={"file": ("notes.txt", b"walk test", "text/plain")})
+        assert r.status_code == 200, r.text
+        got = client.get(r.json()["file_url"])
+        assert got.status_code == 200 and got.content == b"walk test"
+        assert client.get("/uploads/does-not-exist.txt").status_code == 404
+        big = b"x" * (4 * 1024 * 1024 + 1)
+        assert client.post(f"{API}/groups/{group_id}/upload", headers=h, files={"file": ("big.txt", big, "text/plain")}).status_code == 400
+
+        # Study tips match the student's own subjects
+        tips = client.get(f"{API}/ai/insights", headers=h).json()
+        assert {t["title"] for t in tips} - {"Study Sprint", "The Teacher Technique", "Flashcard Method"}
+
+        # Reset demo data puts it back, with students left waiting so a matching run forms groups
+        r = client.post(f"{API}/admin/demo/reset", headers=admin_h)
+        assert r.status_code == 200 and r.json()["students"] == 48
+        run = client.post(f"{API}/admin/matching/run", headers=admin_h, json={}).json()
+        assert run["stats"]["groups"] + run["stats"]["pairs"] > 0
+        # A second run tells waiting students only once
+        client.post(f"{API}/admin/matching/run", headers=admin_h, json={})
+        login(client, "student@demo.lk", "Demo@1234")

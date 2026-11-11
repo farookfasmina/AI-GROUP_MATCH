@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -6,14 +7,15 @@ from pathlib import Path
 # Make the backend folder importable (core, models, routes, services)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.config import settings
-from core.database import Base, SessionLocal, add_missing_columns, engine
+from core.database import Base, SessionLocal, add_missing_columns, engine, get_db
 from models import all_models  # noqa: F401 - registers the tables
+from models.all_models import GroupMessage
 from routes.api_v1 import api_router
 from services.seed import seed
 
@@ -51,10 +53,20 @@ def health():
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Shared chat files. The folder is created if missing (the first version crashed on a fresh
-# checkout because static/ did not exist).
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+@app.get("/uploads/{name}", include_in_schema=False)
+def shared_file(name: str, db=Depends(get_db)):
+    """A file shared in a group chat, read from the database. (It used to be a folder on the
+    server. The hosted site keeps no folder between requests, so shared files could not be
+    opened again.) Files shared before this change are still read from the folder."""
+    msg = db.query(GroupMessage).filter(GroupMessage.file_url == f"/uploads/{name}").first()
+    if msg and msg.file_data is not None:
+        return Response(content=msg.file_data, media_type=mimetypes.guess_type(name)[0] or "application/octet-stream",
+                        headers={"X-Content-Type-Options": "nosniff"})
+    folder = Path(settings.UPLOAD_DIR).resolve()
+    old = (folder / name).resolve()
+    if msg and old.is_file() and folder in old.parents:
+        return FileResponse(old)
+    raise HTTPException(status_code=404, detail="This file is no longer available.")
 
 # The built React app (frontend/dist copied to backend/web) is served from the same address,
 # so one deployment runs the whole platform.

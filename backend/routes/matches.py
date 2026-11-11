@@ -23,6 +23,17 @@ def buddy_group_between(db: Session, a: int, b: int):
     return None
 
 
+def open_buddy_group(db: Session, first: User, second: User) -> StudyGroup:
+    """The private 1-to-1 group of two students who agreed to study together."""
+    group = StudyGroup(name=f"{first.full_name} & {second.full_name}", subject="Study partners",
+                       description="Private study-partner group.", creator_id=first.id, kind="buddy", status="active")
+    db.add(group)
+    db.flush()
+    db.add(Membership(user_id=first.id, group_id=group.id, role="admin", status="accepted"))
+    db.add(Membership(user_id=second.id, group_id=group.id, role="admin", status="accepted"))
+    return group
+
+
 @router.get("/me")
 def get_my_matches(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Top 5 study partners: KNN finds similar students, then compatibility re-ranks them."""
@@ -77,6 +88,14 @@ def connect_with_match(target_user_id: int, db: Session = Depends(get_db), curre
                                             Notification.payload_id == current_user.id, Notification.is_read.is_(False)).first()
     if already:
         return {"message": "Request already sent"}
+    if target.is_demo:
+        # Demo students are not real people, so a request to one was never answered and the
+        # private group, chat and sessions behind it could not be shown. They accept at once.
+        group = open_buddy_group(db, current_user, target)
+        notify(db, current_user.id, f"{target.full_name} accepted your study request - say hello in your private group.",
+               "group", group.id, f"/groups/{group.id}")
+        db.commit()
+        return {"message": "Request accepted", "group_id": group.id}
     notify(db, target.id, f"{current_user.full_name or current_user.email} would like to study with you.",
            "match_request", current_user.id, "/notifications")
     db.commit()
@@ -97,12 +116,7 @@ def accept_request(sender_id: int, db: Session = Depends(get_db), current_user: 
         # private group with - and see the email of - any other student.
         raise HTTPException(status_code=400, detail="This student has not asked to study with you.")
     if not group:
-        group = StudyGroup(name=f"{sender.full_name} & {current_user.full_name}", subject="Study partners",
-                           description="Private study-partner group.", creator_id=sender.id, kind="buddy", status="active")
-        db.add(group)
-        db.flush()
-        db.add(Membership(user_id=sender.id, group_id=group.id, role="admin", status="accepted"))
-        db.add(Membership(user_id=current_user.id, group_id=group.id, role="admin", status="accepted"))
+        group = open_buddy_group(db, sender, current_user)
     db.query(Notification).filter(Notification.user_id == current_user.id, Notification.type == "match_request",
                                   Notification.payload_id == sender.id).update({"is_read": True})
     notify(db, sender.id, f"{current_user.full_name} accepted your study request - say hello in your private group.",

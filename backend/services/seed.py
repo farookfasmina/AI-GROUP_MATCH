@@ -25,6 +25,9 @@ SUBJECTS = [
     ("IT2050", "Statistics"), ("IT3050", "Information Security"),
 ]
 DEMO_PASSWORD = "Demo@1234"
+# Students of these subjects are left waiting, so the first "Run AI matching" an admin presses
+# forms real groups. (With everyone already grouped, the button formed 0 groups and looked broken.)
+WAITING_SUBJECTS = ("Web Development", "Mobile App Development")
 FEATURED = "student@demo.lk"
 
 FIRST = ["Amaya", "Nimal", "Kavindu", "Sahan", "Dilini", "Ishara", "Tharushi", "Ravindu", "Nadeesha", "Pasindu",
@@ -66,8 +69,9 @@ def _pick(rng, options):
     return rng.choices(values, weights=weights, k=1)[0]
 
 
-def seed_demo(db: Session):
-    if not settings.SEED_DEMO or db.query(User).filter(User.is_demo.is_(True)).first():
+def seed_demo(db: Session, force: bool = False):
+    """force=True is the admin's "Reset demo data": it loads the demo even when SEED_DEMO is off."""
+    if not (settings.SEED_DEMO or force) or db.query(User).filter(User.is_demo.is_(True)).first():
         return
     rng = random.Random(2026)
     names = [s[1] for s in SUBJECTS]
@@ -105,7 +109,7 @@ def seed_demo(db: Session):
         users.append(u)
     db.commit()
 
-    run_group_formation(db, trigger="seed")
+    run_group_formation(db, subjects=[n for n in names if n not in WAITING_SUBJECTS], trigger="seed")
     featured = users[0]
     now = datetime.utcnow()
     proposed = db.query(StudyGroup).filter(StudyGroup.status == "proposed").all()

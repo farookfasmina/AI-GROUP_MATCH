@@ -28,9 +28,10 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-    # Uploaded chat files
+    # Shared chat files are stored in the database. UPLOAD_DIR is only read for files shared
+    # before that change. 4 MB: the hosted site refuses any request over 4.5 MB.
     UPLOAD_DIR: str = str(BACKEND_DIR / "uploads")
-    MAX_UPLOAD_MB: int = 10
+    MAX_UPLOAD_MB: int = 4
 
     # First admin, created on start-up when there is no admin yet.
     ADMIN_EMAIL: str = "admin@studymatch.lk"
