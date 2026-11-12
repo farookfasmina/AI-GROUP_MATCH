@@ -21,8 +21,17 @@ from services.seed import seed
 
 @asynccontextmanager
 async def lifespan(_app):
-    Base.metadata.create_all(bind=engine)
-    add_missing_columns()
+    import time
+    for attempt in range(5):
+        try:
+            Base.metadata.create_all(bind=engine)
+            add_missing_columns()
+            break
+        except Exception as exc:
+            if attempt == 4:
+                raise
+            print(f"Database connecting/waking up (attempt {attempt + 1}/5): {exc}")
+            time.sleep(2)
     db = SessionLocal()
     try:
         seed(db)
